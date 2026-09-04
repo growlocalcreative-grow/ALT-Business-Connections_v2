@@ -42,8 +42,20 @@ import {
   Calendar,
   Plus,
   Image as ImageIcon,
-  Upload
+  Upload,
+  Megaphone,
+  Store,
+  Lightbulb,
+  Heart,
+  Zap,
+  Award,
+  Globe,
+  Briefcase,
+  Handshake,
+  HelpCircle,
+  Shield
 } from "lucide-react";
+import { cn } from "../lib/utils";
 import { Button, Card, Section } from "./UI";
 import { Business, MembershipApplication, SiteSettings, Testimonial, AppEvent } from "../types";
 import { AnimatePresence, motion } from "framer-motion";
@@ -249,6 +261,22 @@ const EditTestimonialModal: React.FC<{
 }> = ({ isOpen, onClose, onSave, initialData }) => {
   const [formData, setFormData] = useState<Partial<Testimonial>>(initialData || {});
   useEffect(() => setFormData(initialData || {}), [initialData]);
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 1024 * 1024) { // 1MB limit
+        alert("Image size must be less than 1MB");
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setFormData({ ...formData, image: reader.result as string });
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   if (!isOpen) return null;
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-[#1a3a3a]/40 backdrop-blur-sm">
@@ -268,10 +296,47 @@ const EditTestimonialModal: React.FC<{
               <input type="text" required value={formData.role || ""} onChange={(e) => setFormData({ ...formData, role: e.target.value })} className="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-[#d4af37]" />
             </div>
           </div>
-          <div className="space-y-2">
-            <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Image URL</label>
-            <input type="text" required value={formData.image || ""} onChange={(e) => setFormData({ ...formData, image: e.target.value })} className="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-[#d4af37]" />
+          
+          <div className="space-y-4">
+            <label className="text-xs font-bold text-slate-500 uppercase tracking-widest block">Profile Image</label>
+            <div className="flex items-center gap-4">
+              <div className="w-20 h-20 rounded-xl bg-slate-100 border border-slate-200 overflow-hidden flex-shrink-0">
+                {formData.image ? (
+                  <img src={formData.image} alt="Preview" className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center">
+                    <ImageIcon className="w-8 h-8 text-slate-300" />
+                  </div>
+                )}
+              </div>
+              <div className="flex-1 space-y-2">
+                <input
+                  type="text"
+                  placeholder="Image URL"
+                  value={formData.image || ""}
+                  onChange={(e) => setFormData({ ...formData, image: e.target.value })}
+                  className="w-full px-4 py-2 text-sm rounded-lg border border-slate-200 focus:ring-2 focus:ring-[#d4af37] outline-none"
+                />
+                <div className="relative">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageUpload}
+                    className="hidden"
+                    id="testimonial-image-upload"
+                  />
+                  <label
+                    htmlFor="testimonial-image-upload"
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-slate-50 text-slate-600 rounded-lg text-xs font-bold border border-slate-200 cursor-pointer hover:bg-slate-100 transition-all"
+                  >
+                    <Upload className="w-3.5 h-3.5" />
+                    Upload Photo
+                  </label>
+                </div>
+              </div>
+            </div>
           </div>
+
           <div className="space-y-2">
             <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Quote Content</label>
             <textarea required value={formData.content || ""} onChange={(e) => setFormData({ ...formData, content: e.target.value })} className="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-[#d4af37] min-h-[100px]" />
@@ -537,6 +602,11 @@ export const AdminDashboard: React.FC = () => {
           clubTitle: "A Cooperative Club",
           clubContent: "Working together to showcase the best ALT has to offer.",
           clubImage: "https://images.unsplash.com/photo-1556761175-4b46a572b786?q=80&w=1000&auto=format&fit=crop",
+          communityFeatures: [
+            { id: '1', title: "Local Promotion", content: "We actively promote member services on the ALT Facebook page and through community events.", icon: "Megaphone" },
+            { id: '2', title: "Collaborative Booths", content: "Join our shared spaces at events like the Independence Day Celebration and WIFFs Yard Sale.", icon: "Store" },
+            { id: '3', title: "Knowledge Sharing", content: "Attend market seminars at the Lakeside Clubhouse featuring industry experts to grow your business.", icon: "Lightbulb" }
+          ],
           footerContent: "A cooperative club for Auburn Lake Trails entrepreneurs. Helping neighbors thrive through local services and collaboration.",
           testimonialsTitle: "Neighborly Voices",
           testimonialsSubtitle: "Hear from the small business owners who are the heart of ALT.",
@@ -1363,6 +1433,121 @@ export const AdminDashboard: React.FC = () => {
                       onChange={(e) => setSiteSettings({ ...siteSettings, clubContent: e.target.value })}
                       className="w-full px-5 py-4 rounded-xl border border-slate-200 focus:ring-2 focus:ring-[#d4af37] outline-none transition-all min-h-[100px]"
                     />
+                  </div>
+
+                  {/* Club Points / Community Features */}
+                  <div className="pt-6 space-y-8">
+                    <div className="flex justify-between items-center border-l-4 border-[#d4af37] pl-4">
+                      <h4 className="text-sm font-bold text-[#d4af37] uppercase tracking-[0.2em]">Community Features</h4>
+                      <Button 
+                        type="button"
+                        onClick={() => {
+                          const currentFeatures = siteSettings?.communityFeatures || [];
+                          setSiteSettings({
+                            ...siteSettings,
+                            communityFeatures: [
+                              ...currentFeatures,
+                              { id: Math.random().toString(36).substr(2, 9), title: "New Feature", content: "Feature description", icon: "BadgeCheck" }
+                            ]
+                          });
+                        }}
+                        variant="primary"
+                        className="scale-75 origin-right flex items-center gap-2"
+                      >
+                        <Plus className="w-4 h-4" /> Add Feature
+                      </Button>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 gap-8">
+                      {(siteSettings?.communityFeatures || []).map((feature, index) => (
+                        <div key={feature.id || index} className="p-6 bg-slate-50 rounded-2xl border border-slate-100 relative group">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const newFeatures = [...(siteSettings?.communityFeatures || [])];
+                              newFeatures.splice(index, 1);
+                              setSiteSettings({ ...siteSettings, communityFeatures: newFeatures });
+                            }}
+                            className="absolute top-4 right-4 p-2 text-slate-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+
+                          <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
+                            {/* Icon Picker */}
+                            <div className="md:col-span-3 space-y-4">
+                              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Icon</label>
+                              <div className="grid grid-cols-4 gap-2">
+                                {[
+                                  'Megaphone', 'Store', 'Lightbulb', 'Users', 
+                                  'Shield', 'Heart', 'Zap', 'Award', 
+                                  'Globe', 'Briefcase', 'Handshake', 'HelpCircle'
+                                ].map((iconName) => {
+                                  const ICON_MAP: Record<string, any> = {
+                                    Megaphone, Store, Lightbulb, Users, Shield, Heart, Zap, Award, Globe, Briefcase, Handshake, HelpCircle, BadgeCheck
+                                  };
+                                  const IconComp = ICON_MAP[iconName] || HelpCircle;
+                                  return (
+                                    <button
+                                      key={iconName}
+                                      type="button"
+                                      onClick={() => {
+                                        const newFeatures = [...(siteSettings?.communityFeatures || [])];
+                                        newFeatures[index] = { ...newFeatures[index], icon: iconName };
+                                        setSiteSettings({ ...siteSettings, communityFeatures: newFeatures });
+                                      }}
+                                      className={cn(
+                                        "p-2 rounded-lg border transition-all flex items-center justify-center",
+                                        feature.icon === iconName 
+                                          ? "bg-[#1a3a3a] border-[#1a3a3a] text-white shadow-md" 
+                                          : "bg-white border-slate-200 text-slate-400 hover:border-[#d4af37] hover:text-[#d4af37]"
+                                      )}
+                                    >
+                                      <IconComp className="w-4 h-4" />
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+
+                            {/* Content Inputs */}
+                            <div className="md:col-span-9 space-y-4">
+                              <div className="space-y-2">
+                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Title</label>
+                                <input
+                                  type="text"
+                                  value={feature.title}
+                                  onChange={(e) => {
+                                    const newFeatures = [...(siteSettings?.communityFeatures || [])];
+                                    newFeatures[index] = { ...newFeatures[index], title: e.target.value };
+                                    setSiteSettings({ ...siteSettings, communityFeatures: newFeatures });
+                                  }}
+                                  className="w-full px-4 py-2 rounded-lg border border-slate-200 focus:ring-2 focus:ring-[#d4af37] outline-none"
+                                />
+                              </div>
+                              <div className="space-y-2">
+                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Description</label>
+                                <textarea
+                                  value={feature.content}
+                                  onChange={(e) => {
+                                    const newFeatures = [...(siteSettings?.communityFeatures || [])];
+                                    newFeatures[index] = { ...newFeatures[index], content: e.target.value };
+                                    setSiteSettings({ ...siteSettings, communityFeatures: newFeatures });
+                                  }}
+                                  className="w-full px-4 py-2 rounded-lg border border-slate-200 focus:ring-2 focus:ring-[#d4af37] outline-none min-h-[80px] text-sm"
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+
+                      {(siteSettings?.communityFeatures || []).length === 0 && (
+                        <div className="text-center py-12 border-2 border-dashed border-slate-200 rounded-2xl">
+                          <p className="text-slate-400 italic">No features added. Click "Add Feature" to get started.</p>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
 

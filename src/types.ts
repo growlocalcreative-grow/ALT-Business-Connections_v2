@@ -55,6 +55,13 @@ export interface MembershipApplication extends ContactFormData {
   timestamp: string;
 }
 
+export interface CommunityFeature {
+  id: string;
+  title: string;
+  content: string;
+  icon: string;
+}
+
 export interface SiteSettings {
   heroTitle: string;
   heroSubtitle: string;
@@ -69,6 +76,7 @@ export interface SiteSettings {
   clubTitle: string;
   clubContent: string;
   clubImage?: string;
+  communityFeatures?: CommunityFeature[];
   footerContent: string;
   testimonialsTitle: string;
   testimonialsSubtitle: string;

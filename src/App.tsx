@@ -1,4 +1,7 @@
-import { Calendar, Heart, Menu, MessageSquare, Shield, Users, X, LayoutGrid, ChevronDown, ChevronUp } from "lucide-react";
+import { 
+  Calendar, Heart, Menu, X, LayoutGrid, ChevronDown, ChevronUp, Users, Shield,
+  Megaphone, Store, Lightbulb, Zap, Award, Globe, Briefcase, Handshake, HelpCircle, BadgeCheck
+} from "lucide-react";
 import { motion, useScroll, useTransform, AnimatePresence } from "motion/react";
 import { useState, useEffect } from "react";
 import { BrowserRouter, Routes, Route, Link, useLocation } from "react-router-dom";
@@ -257,32 +260,33 @@ const HomePage = ({ onJoinClick, settings }: { onJoinClick: () => void; settings
       >
         <div className="grid lg:grid-cols-2 gap-20 items-center">
           <div className="space-y-8">
-            <div className="flex gap-6 items-start">
-              <div className="flex-shrink-0 w-12 h-12 bg-white border border-[#d4af37] rounded-lg flex items-center justify-center shadow-sm">
-                <span className="text-[#1a3a3a] font-bold">01</span>
-              </div>
-              <div>
-                <h4 className="text-xl font-bold text-[#1a3a3a] mb-2 uppercase tracking-wide">Local Promotion</h4>
-                <p className="text-slate-600">We actively promote member services on the ALT Facebook page and through community events.</p>
-              </div>
-            </div>
-            <div className="flex gap-6 items-start">
-              <div className="flex-shrink-0 w-12 h-12 bg-white border border-[#d4af37] rounded-lg flex items-center justify-center shadow-sm">
-                <span className="text-[#1a3a3a] font-bold">02</span>
-              </div>
-              <div>
-                <h4 className="text-xl font-bold text-[#1a3a3a] mb-2 uppercase tracking-wide">Collaborative Booths</h4>
-                <p className="text-slate-600">Join our shared spaces at events like the Independence Day Celebration and WIFFs Yard Sale.</p>
-              </div>
-            </div>
-            <div className="flex gap-6 items-start">
-              <div className="flex-shrink-0 w-12 h-12 bg-white border border-[#d4af37] rounded-lg flex items-center justify-center shadow-sm">
-                <span className="text-[#1a3a3a] font-bold">03</span>
-              </div>
-              <div>
-                <h4 className="text-xl font-bold text-[#1a3a3a] mb-2 uppercase tracking-wide">Knowledge Sharing</h4>
-                <p className="text-slate-600">Attend market seminars at the Lakeside Clubhouse featuring industry experts to grow your business.</p>
-              </div>
+            {/* Features List */}
+            <div className="space-y-8">
+              {(settings?.communityFeatures || [
+                { id: '1', title: "Local Promotion", content: "We actively promote member services on the ALT Facebook page and through community events.", icon: "Megaphone" },
+                { id: '2', title: "Collaborative Booths", content: "Join our shared spaces at events like the Independence Day Celebration and WIFFs Yard Sale.", icon: "Store" },
+                { id: '3', title: "Knowledge Sharing", content: "Attend market seminars at the Lakeside Clubhouse featuring industry experts to grow your business.", icon: "Lightbulb" }
+              ]).map((feature: any, index: number) => {
+                const ICON_MAP: Record<string, any> = {
+                  Megaphone, Store, Lightbulb, Users, Shield, Heart, Zap, Award, Globe, Briefcase, Handshake, HelpCircle, BadgeCheck
+                };
+                const IconComponent = ICON_MAP[feature.icon] || BadgeCheck;
+                return (
+                  <div key={feature.id || index} className="flex gap-6 items-start group">
+                    <div className="flex-shrink-0 w-12 h-12 bg-white border border-[#d4af37] rounded-lg flex items-center justify-center shadow-sm group-hover:bg-[#d4af37]/5 transition-colors">
+                      <IconComponent className="w-6 h-6 text-[#1a3a3a]" />
+                    </div>
+                    <div>
+                      <h4 className="text-xl font-bold text-[#1a3a3a] mb-2 uppercase tracking-wide">
+                        {feature.title}
+                      </h4>
+                      <p className="text-slate-600">
+                        {feature.content}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
           
