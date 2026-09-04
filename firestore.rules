@@ -1,0 +1,140 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 1. Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // 2. Global Helpers
+    function isSignedIn() {
+      return request.auth != null && request.auth.token.email_verified == true;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // 3. Validation Helpers
+    function isValidMembership(data) {
+      return data.keys().hasAll(['name', 'email', 'businessName', 'category', 'description', 'phone', 'isTextEnabled', 'website', 'includeInDirectory', 'timestamp'])
+        && data.name is string && data.name.size() <= 200
+        && data.email is string && data.email.size() <= 200
+        && data.businessName is string && data.businessName.size() <= 200
+        && data.category is string && data.category.size() <= 100
+        && data.description is string && data.description.size() <= 2000
+        && data.phone is string && data.phone.size() <= 20
+        && data.isTextEnabled is bool
+        && data.website is string && data.website.size() <= 500
+        && data.includeInDirectory is bool
+        && data.timestamp is string;
+    }
+
+    function isValidBusiness(data) {
+      return data.keys().hasAll(['name', 'category', 'owner', 'description', 'email', 'phone', 'isTextEnabled', 'website', 'timestamp'])
+        && data.name is string && data.name.size() <= 200
+        && data.category is string && data.category.size() <= 100
+        && data.owner is string && data.owner.size() <= 200
+        && data.description is string && data.description.size() <= 2000
+        && data.email is string && data.email.size() <= 200
+        && data.phone is string && data.phone.size() <= 20
+        && data.isTextEnabled is bool
+        && (data.get('isABCClubMember', false) is bool)
+        && data.website is string && data.website.size() <= 500
+        && data.timestamp is string;
+    }
+
+    function isValidSiteSettings(data) {
+      return data.get('heroTitle', '') is string && data.get('heroTitle', '').size() <= 500
+        && data.get('heroSubtitle', '') is string && data.get('heroSubtitle', '').size() <= 2000
+        && data.get('heroImage', '') is string && data.get('heroImage', '').size() <= 1000
+        && data.get('announcement', '') is string && data.get('announcement', '').size() <= 1000
+        && data.get('aboutTitle', '') is string && data.get('aboutTitle', '').size() <= 500
+        && data.get('aboutContent', '') is string && data.get('aboutContent', '').size() <= 5000
+        && data.get('communityTitle', '') is string && data.get('communityTitle', '').size() <= 500
+        && data.get('communityContent', '') is string && data.get('communityContent', '').size() <= 5000
+        && data.get('eventsTitle', '') is string && data.get('eventsTitle', '').size() <= 500
+        && data.get('eventsContent', '') is string && data.get('eventsContent', '').size() <= 5000
+        && data.get('clubTitle', '') is string && data.get('clubTitle', '').size() <= 500
+        && data.get('clubContent', '') is string && data.get('clubContent', '').size() <= 5000
+        && data.get('clubImage', '') is string && data.get('clubImage', '').size() <= 1000
+        && data.get('footerContent', '') is string && data.get('footerContent', '').size() <= 2000
+        && data.get('testimonialsTitle', '') is string && data.get('testimonialsTitle', '').size() <= 500
+        && data.get('testimonialsSubtitle', '') is string && data.get('testimonialsSubtitle', '').size() <= 2000;
+    }
+
+    function isValidTestimonial(data) {
+      return data.get('name', '') is string && data.get('name', '').size() <= 200
+        && data.get('role', '') is string && data.get('role', '').size() <= 200
+        && data.get('content', '') is string && data.get('content', '').size() <= 2000
+        && data.get('image', '') is string && data.get('image', '').size() <= 1000;
+    }
+
+    function isValidEvent(data) {
+      return data.get('title', '') is string && data.get('title', '').size() <= 200
+        && data.get('date', '') is string && data.get('date', '').size() <= 100
+        && data.get('time', '') is string && data.get('time', '').size() <= 100
+        && data.get('location', '') is string && data.get('location', '').size() <= 200
+        && data.get('category', '') is string && data.get('category', '').size() <= 100
+        && data.get('description', '') is string && data.get('description', '').size() <= 2000
+        && data.get('host', '') is string && data.get('host', '').size() <= 200
+        && data.get('hostEmail', '') is string && data.get('hostEmail', '').size() <= 200
+        && data.get('hostPhone', '') is string && data.get('hostPhone', '').size() <= 100
+        && data.get('startTime', '') is string && data.get('startTime', '').size() <= 100
+        && data.get('endTime', '') is string && data.get('endTime', '').size() <= 100;
+    }
+
+    // 4. Collection Rules
+
+    match /admins/{adminUid} {
+      allow read: if isSignedIn();
+      // Only existing admins can add new admins
+      // SPECIAL BOOTSTRAP RULE: allow growlocalcreative@gmail.com to create their own admin record
+      allow create: if isSignedIn() && (isAdmin() || request.auth.token.email == 'growlocalcreative@gmail.com');
+      allow delete: if isAdmin() && adminUid != request.auth.uid;
+    }
+
+    match /memberships/{membershipId} {
+      allow create: if isValidMembership(incoming());
+      allow get, list, update, delete: if isAdmin();
+    }
+
+    match /businesses/{businessId} {
+      allow read: if true;
+      allow create: if isValidBusiness(incoming());
+      allow update, delete: if isAdmin();
+    }
+
+    match /settings/{settingId} {
+      allow read: if true;
+      allow write: if isAdmin() && isValidSiteSettings(incoming());
+    }
+
+    match /testimonials/{testimonialId} {
+      allow read: if true;
+      allow write: if isAdmin() && isValidTestimonial(incoming());
+    }
+
+    match /events/{eventId} {
+      allow read: if true;
+      allow write: if isAdmin() && isValidEvent(incoming());
+    }
+  }
+}

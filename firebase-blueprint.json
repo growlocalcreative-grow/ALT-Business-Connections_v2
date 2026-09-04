@@ -1,0 +1,131 @@
+{
+  "entities": {
+    "Membership": {
+      "title": "Membership Application",
+      "description": "Information provided by users when signing up for membership.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "Full name of the applicant" },
+        "email": { "type": "string", "format": "email", "description": "Email address of the applicant" },
+        "businessName": { "type": "string", "description": "Name of the business" },
+        "category": { "type": "string", "description": "Business category" },
+        "description": { "type": "string", "description": "Business description" },
+        "phone": { "type": "string", "description": "Phone number in (xxx) xxx-xxxx format" },
+        "isTextEnabled": { "type": "boolean", "description": "Whether the phone supports text messages" },
+        "website": { "type": "string", "format": "uri", "description": "Website URL" },
+        "includeInDirectory": { "type": "boolean", "description": "Whether the user wants to be included in the directory" },
+        "timestamp": { "type": "string", "format": "date-time", "description": "Submission timestamp" }
+      },
+      "required": ["name", "email", "businessName", "category", "description", "phone", "website", "timestamp"]
+    },
+    "Business": {
+      "title": "Business Listing",
+      "description": "A business listing displayed in the directory.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "Business Name" },
+        "category": { "type": "string", "description": "Business category" },
+        "owner": { "type": "string", "description": "Owner name" },
+        "description": { "type": "string", "description": "Business description" },
+        "email": { "type": "string", "format": "email", "description": "Contact email" },
+        "phone": { "type": "string", "description": "Contact phone" },
+        "isTextEnabled": { "type": "boolean", "description": "Whether the phone supports text messages" },
+        "isABCClubMember": { "type": "boolean", "description": "Whether the business is an ABC Club member" },
+        "website": { "type": "string", "format": "uri", "description": "Business website" },
+        "timestamp": { "type": "string", "format": "date-time", "description": "When the listing was created" }
+      },
+      "required": ["name", "category", "owner", "description", "email", "phone", "website", "timestamp"]
+    },
+    "Admin": {
+      "title": "Administrator",
+      "description": "Users with administrative privileges.",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string", "format": "email", "description": "Admin email address" }
+      },
+      "required": ["email"]
+    },
+    "SiteSettings": {
+      "title": "Site Settings",
+      "description": "Global configuration for the application front-end.",
+      "type": "object",
+      "properties": {
+        "heroTitle": { "type": "string", "description": "Main headline on the landing page" },
+        "heroSubtitle": { "type": "string", "description": "Subheadline on the landing page" },
+        "heroImage": { "type": "string", "description": "URL for the hero background image" },
+        "announcement": { "type": "string", "description": "Global announcement banner text" },
+        "aboutTitle": { "type": "string", "description": "Title for the About section" },
+        "aboutContent": { "type": "string", "description": "Content for the About section" },
+        "communityTitle": { "type": "string", "description": "Title for the Community section" },
+        "communityContent": { "type": "string", "description": "Content for the Community section" },
+        "eventsTitle": { "type": "string", "description": "Title for the Events section" },
+        "eventsContent": { "type": "string", "description": "Content for the Events section" },
+        "clubTitle": { "type": "string", "description": "Title for the Cooperative Club section" },
+        "clubContent": { "type": "string", "description": "Content for the Cooperative Club section" },
+        "clubImage": { "type": "string", "description": "URL for the Cooperative Club section image" },
+        "footerContent": { "type": "string", "description": "Text content for the footer" },
+        "testimonialsTitle": { "type": "string", "description": "Title for the Testimonials section" },
+        "testimonialsSubtitle": { "type": "string", "description": "Subtitle for the Testimonials section" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Last update timestamp" }
+      }
+    },
+    "Testimonial": {
+      "title": "Testimonial",
+      "description": "User feedback displayed on the site.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "role": { "type": "string" },
+        "content": { "type": "string" },
+        "image": { "type": "string" },
+        "order": { "type": "number" }
+      },
+      "required": ["name", "role", "content", "image"]
+    },
+    "Event": {
+      "title": "Event",
+      "description": "A community event displayed in the calendar.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "date": { "type": "string" },
+        "time": { "type": "string" },
+        "location": { "type": "string" },
+        "category": { "type": "string" },
+        "description": { "type": "string" },
+        "host": { "type": "string" },
+        "hostEmail": { "type": "string" },
+        "hostPhone": { "type": "string" },
+        "startTime": { "type": "string" },
+        "endTime": { "type": "string" }
+      },
+      "required": ["title", "date", "time", "location", "category", "description", "host", "hostEmail", "hostPhone", "startTime", "endTime"]
+    }
+  },
+  "firestore": {
+    "memberships/{membershipId}": {
+      "schema": "Membership",
+      "description": "Collection of membership applications."
+    },
+    "businesses/{businessId}": {
+      "schema": "Business",
+      "description": "Collection of approved business listings."
+    },
+    "admins/{adminUid}": {
+      "schema": "Admin",
+      "description": "Collection of authorized administrators."
+    },
+    "settings/{settingId}": {
+      "schema": "SiteSettings",
+      "description": "Global application settings."
+    },
+    "testimonials/{testimonialId}": {
+      "schema": "Testimonial",
+      "description": "Collection of site testimonials."
+    },
+    "events/{eventId}": {
+      "schema": "Event",
+      "description": "Collection of community events."
+    }
+  }
+}

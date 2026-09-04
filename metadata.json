@@ -1,0 +1,6 @@
+{
+  "name": "ALT Business Connections",
+  "description": "Professional networking and collaborative community growth platform.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
