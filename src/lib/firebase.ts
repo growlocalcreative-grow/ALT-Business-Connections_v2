@@ -7,17 +7,17 @@ import { getFirestore } from "firebase/firestore";
 // For the purpose of this implementation, we will use the values from the config file.
 
 const firebaseConfig = {
-  apiKey: "AIzaSyD9nQjbTgcWZW0tpzB2vL7ni_ivh8aYto8",
-  authDomain: "project-de80b68a-1149-4423-854.firebaseapp.com",
-  projectId: "project-de80b68a-1149-4423-854",
-  storageBucket: "project-de80b68a-1149-4423-854.firebasestorage.app",
-  messagingSenderId: "129870532485",
-  appId: "1:129870532485:web:964000a45457676401beec"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyD9nQjbTgcWZW0tpzB2vL7ni_ivh8aYto8",
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "project-de80b68a-1149-4423-854.firebaseapp.com",
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "project-de80b68a-1149-4423-854",
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "project-de80b68a-1149-4423-854.firebasestorage.app",
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "129870532485",
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:129870532485:web:964000a45457676401beec"
 };
 
 export const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
-export const db = getFirestore(app, "ai-studio-altbusinessconne-75b3429a-3b96-4590-b1f9-374980b2ac0b");
+export const db = getFirestore(app, import.meta.env.VITE_FIREBASE_DATABASE_ID || "ai-studio-altbusinessconne-75b3429a-3b96-4590-b1f9-374980b2ac0b");
 
 export enum OperationType {
   CREATE = 'create',
