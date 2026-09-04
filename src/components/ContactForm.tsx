@@ -15,9 +15,9 @@ const contactSchema = z.object({
   businessName: z.string().min(2, "Business name is required"),
   category: z.string().min(2, "Category is required"),
   description: z.string().min(10, "Description must be at least 10 characters"),
-  phone: z.string().regex(/^\(\d{3}\) \d{3}-\d{4}$/, "Phone is required: (xxx) xxx-xxxx"),
+  phone: z.string().regex(/^\(\d{3}\) \d{3}-\d{4}$/, "Phone format: (xxx) xxx-xxxx"),
   isTextEnabled: z.boolean(),
-  website: z.string().url("Invalid URL").min(1, "Website URL is required"),
+  website: z.string().min(1, "Website URL is required"),
   includeInDirectory: z.boolean(),
   logo: z.string().optional(),
 });
@@ -91,11 +91,19 @@ export const ContactForm = ({
 
   const onSubmit = async (data: ContactFormData) => {
     setIsSubmitting(true);
+    
+    // Auto-fix website URL if protocol is missing
+    let formattedWebsite = data.website.trim();
+    if (formattedWebsite && !formattedWebsite.startsWith('http://') && !formattedWebsite.startsWith('https://')) {
+      formattedWebsite = `https://${formattedWebsite}`;
+    }
+
     try {
       // Save to membership applications
       try {
         await addDoc(collection(db, "memberships"), {
           ...data,
+          website: formattedWebsite,
           timestamp: new Date().toISOString(),
         });
       } catch (error) {
@@ -113,7 +121,7 @@ export const ContactForm = ({
             email: data.email,
             phone: data.phone,
             isTextEnabled: data.isTextEnabled,
-            website: data.website,
+            website: formattedWebsite,
             logo: data.logo || "",
             timestamp: new Date().toISOString(),
           });
@@ -326,7 +334,7 @@ export const ContactForm = ({
         </div>
       )}
 
-      <Button className="w-full py-4 text-lg" variant="primary">
+      <Button type="submit" className="w-full py-4 text-lg" variant="primary">
         {isSubmitting ? "Submitting..." : hideDirectoryCheckbox ? "Add My Business" : "Join Our Cooperative"}
       </Button>
     </motion.form>

@@ -57,7 +57,7 @@ const Navigation = ({ onJoinClick }: { onJoinClick: () => void }) => {
   return (
     <motion.nav
       style={{ backgroundColor: headerBg, borderBottom: `1px solid ${headerBorder}` }}
-      className="fixed top-0 left-0 right-0 z-50 px-6 py-4 transition-all backdrop-blur-sm"
+      className="fixed top-0 left-0 right-0 z-50 px-6 py-4 transition-all"
     >
       <div className="max-w-7xl mx-auto flex items-center justify-between">
         <Link to="/" className="flex items-center gap-2">
@@ -156,8 +156,8 @@ const HomePage = ({ onJoinClick, settings }: { onJoinClick: () => void; settings
       {/* Hero Section */}
       <section className="relative pt-32 pb-20 md:pt-48 md:pb-32 overflow-hidden">
         {/* Geometric Background Elements */}
-        <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-[#d4af37]/5 rounded-full -mr-64 -mt-32 blur-3xl pointer-events-none" />
-        <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-[#1a3a3a]/5 rounded-full -ml-32 -mb-32 blur-3xl pointer-events-none" />
+        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-[#d4af37]/5 rounded-full -mr-48 -mt-24 blur-2xl pointer-events-none" />
+        <div className="absolute bottom-0 left-0 w-[300px] h-[300px] bg-[#1a3a3a]/5 rounded-full -ml-24 -mb-24 blur-2xl pointer-events-none" />
         <div className="absolute top-1/4 left-10 w-px h-64 bg-gradient-to-b from-transparent via-[#d4af37]/30 to-transparent rotate-12" />
         <div className="absolute top-1/3 right-20 w-px h-96 bg-gradient-to-b from-transparent via-[#1a3a3a]/20 to-transparent -rotate-12" />
 

@@ -34,31 +34,31 @@ service cloud.firestore {
 
     // 3. Validation Helpers
     function isValidMembership(data) {
-      return data.keys().hasAll(['name', 'email', 'businessName', 'category', 'description', 'phone', 'isTextEnabled', 'website', 'includeInDirectory', 'timestamp'])
-        && data.name is string && data.name.size() <= 200
-        && data.email is string && data.email.size() <= 200
-        && data.businessName is string && data.businessName.size() <= 200
-        && data.category is string && data.category.size() <= 100
-        && data.description is string && data.description.size() <= 2000
-        && data.phone is string && data.phone.size() <= 20
-        && data.isTextEnabled is bool
-        && data.website is string && data.website.size() <= 500
-        && data.includeInDirectory is bool
-        && data.timestamp is string;
+      return (data.get('name', '') is string && data.get('name', '').size() <= 200)
+        && (data.get('email', '') is string && data.get('email', '').size() <= 200)
+        && (data.get('businessName', '') is string && data.get('businessName', '').size() <= 200)
+        && (data.get('category', '') is string && data.get('category', '').size() <= 100)
+        && (data.get('description', '') is string && data.get('description', '').size() <= 2000)
+        && (data.get('phone', '') is string && data.get('phone', '').size() <= 20)
+        && (data.get('isTextEnabled', false) is bool)
+        && (data.get('website', '') is string && data.get('website', '').size() <= 500)
+        && (data.get('includeInDirectory', true) is bool)
+        && (data.get('logo', '') is string && data.get('logo', '').size() <= 1500000)
+        && (data.get('timestamp', '') is string);
     }
 
     function isValidBusiness(data) {
-      return data.keys().hasAll(['name', 'category', 'owner', 'description', 'email', 'phone', 'isTextEnabled', 'website', 'timestamp'])
-        && data.name is string && data.name.size() <= 200
-        && data.category is string && data.category.size() <= 100
-        && data.owner is string && data.owner.size() <= 200
-        && data.description is string && data.description.size() <= 2000
-        && data.email is string && data.email.size() <= 200
-        && data.phone is string && data.phone.size() <= 20
-        && data.isTextEnabled is bool
+      return (data.get('name', '') is string && data.get('name', '').size() <= 200)
+        && (data.get('category', '') is string && data.get('category', '').size() <= 100)
+        && (data.get('owner', '') is string && data.get('owner', '').size() <= 200)
+        && (data.get('description', '') is string && data.get('description', '').size() <= 2000)
+        && (data.get('email', '') is string && data.get('email', '').size() <= 200)
+        && (data.get('phone', '') is string && data.get('phone', '').size() <= 20)
+        && (data.get('isTextEnabled', false) is bool)
         && (data.get('isABCClubMember', false) is bool)
-        && data.website is string && data.website.size() <= 500
-        && data.timestamp is string;
+        && (data.get('website', '') is string && data.get('website', '').size() <= 500)
+        && (data.get('logo', '') is string && data.get('logo', '').size() <= 1500000)
+        && (data.get('timestamp', '') is string);
     }
 
     function isValidSiteSettings(data) {
@@ -77,14 +77,15 @@ service cloud.firestore {
         && data.get('clubImage', '') is string && data.get('clubImage', '').size() <= 1000
         && data.get('footerContent', '') is string && data.get('footerContent', '').size() <= 2000
         && data.get('testimonialsTitle', '') is string && data.get('testimonialsTitle', '').size() <= 500
-        && data.get('testimonialsSubtitle', '') is string && data.get('testimonialsSubtitle', '').size() <= 2000;
+        && data.get('testimonialsSubtitle', '') is string && data.get('testimonialsSubtitle', '').size() <= 2000
+        && (data.get('communityFeatures', []) is list);
     }
 
     function isValidTestimonial(data) {
-      return data.get('name', '') is string && data.get('name', '').size() <= 200
-        && data.get('role', '') is string && data.get('role', '').size() <= 200
-        && data.get('content', '') is string && data.get('content', '').size() <= 2000
-        && data.get('image', '') is string && data.get('image', '').size() <= 1000;
+      return (data.get('name', '') is string && data.get('name', '').size() <= 200)
+        && (data.get('role', '') is string && data.get('role', '').size() <= 200)
+        && (data.get('content', '') is string && data.get('content', '').size() <= 2000)
+        && (data.get('image', '') is string && data.get('image', '').size() <= 1500000);
     }
 
     function isValidEvent(data) {
@@ -124,17 +125,20 @@ service cloud.firestore {
 
     match /settings/{settingId} {
       allow read: if true;
-      allow write: if isAdmin() && isValidSiteSettings(incoming());
+      allow create, update: if isAdmin() && isValidSiteSettings(incoming());
+      allow delete: if isAdmin();
     }
 
     match /testimonials/{testimonialId} {
       allow read: if true;
-      allow write: if isAdmin() && isValidTestimonial(incoming());
+      allow create, update: if isAdmin() && isValidTestimonial(incoming());
+      allow delete: if isAdmin();
     }
 
     match /events/{eventId} {
       allow read: if true;
-      allow write: if isAdmin() && isValidEvent(incoming());
+      allow create, update: if isAdmin() && isValidEvent(incoming());
+      allow delete: if isAdmin();
     }
   }
 }
