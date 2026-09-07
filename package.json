@@ -1,7 +1,7 @@
 {
   "name": "alt-business-connections",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.0.1",
   "type": "module",
   "scripts": {
     "dev": "tsx server.ts",
@@ -20,6 +20,7 @@
     "dotenv": "^17.2.3",
     "express": "^4.21.2",
     "firebase": "^12.18.0",
+    "firebase-admin": "^14.3.0",
     "form-data": "^4.0.6",
     "framer-motion": "^13.2.0",
     "lucide-react": "^0.546.0",

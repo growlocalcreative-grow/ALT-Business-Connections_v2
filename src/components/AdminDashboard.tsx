@@ -662,29 +662,58 @@ export const NewsletterPanel: React.FC<{
     setStatus(null);
 
     try {
-      // Send via Firestore Queue to bypass 405 Method Not Allowed errors on static hosts
-      const newsletterData = {
-        subject,
-        body,
-        recipients: Array.from(selectedEmails),
-        status: 'pending',
-        createdAt: serverTimestamp(),
-        createdBy: auth.currentUser?.email || 'admin',
-        recipientCount: selectedEmails.size
-      };
+      // Use direct Cloud Run URL if available to bypass static host 405 errors
+      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || window.location.origin;
+      const apiUrl = `${apiBaseUrl.replace(/\/$/, '')}/api/newsletter/send`;
+      
+      console.log("Sending newsletter via direct API:", apiUrl);
 
-      await addDoc(collection(db, "newsletter_queue"), newsletterData);
+      const response = await fetch(apiUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          subject,
+          body,
+          recipients: Array.from(selectedEmails),
+        }),
+      });
 
-      setStatus({ type: 'success', message: "Newsletter queued for sending! Our background worker will process it shortly." });
-      setSubject("");
-      setBody("");
-      setIsModalOpen(false);
+      const data = await response.json();
+
+      if (response.ok) {
+        // Also save to Firestore for history/tracking
+        try {
+          await addDoc(collection(db, "newsletter_queue"), {
+            subject,
+            body,
+            recipients: Array.from(selectedEmails),
+            status: 'sent',
+            createdAt: serverTimestamp(),
+            sentAt: serverTimestamp(),
+            createdBy: auth.currentUser?.email || 'admin',
+            recipientCount: selectedEmails.size,
+            messageId: data.messageId
+          });
+        } catch (e) {
+          console.warn("Failed to save history log, but email was sent:", e);
+        }
+
+        setStatus({ type: 'success', message: "Newsletter sent successfully!" });
+        setSubject("");
+        setBody("");
+        setIsModalOpen(false);
+      } else {
+        throw new Error(data.error || `Server error (${response.status})`);
+      }
     } catch (error: any) {
-      console.error("Newsletter queue error:", error);
-      setStatus({ type: 'error', message: error.message || "Failed to queue newsletter for sending." });
+      console.error("Newsletter error details:", error);
+      setStatus({ type: 'error', message: error.message || "An unexpected error occurred while sending." });
     } finally {
       setIsSending(false);
     }
+
   };
 
   return (

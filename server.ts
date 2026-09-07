@@ -5,12 +5,13 @@ import { createServer as createViteServer } from "vite";
 import Mailgun from "mailgun.js";
 import formData from "form-data";
 import cors from "cors";
-import { initializeApp } from "firebase/app";
-import { getFirestore, collection, query, where, onSnapshot, updateDoc, doc } from "firebase/firestore";
 import fs from "fs";
+import admin from "firebase-admin";
+
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
 
 async function startServer() {
   const app = express();
@@ -25,13 +26,25 @@ async function startServer() {
   app.use(cors());
   app.use(express.json({ limit: '10mb' }));
 
-  // Initialize Firebase for Background Worker
+  // Initialize Firebase for Client (if needed for other things)
   const firebaseConfig = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'firebase-applet-config.json'), 'utf8'));
-  const firebaseApp = initializeApp(firebaseConfig);
-  const db = getFirestore(firebaseApp, firebaseConfig.firestoreDatabaseId);
+  
+  // Initialize Firebase Admin for privileged background work
+  if (!admin.apps.length) {
+    admin.initializeApp({
+      projectId: firebaseConfig.projectId
+    });
+  }
+  
+  // Get the correct Firestore instance (handling named databases)
+  const adminDb = firebaseConfig.firestoreDatabaseId && firebaseConfig.firestoreDatabaseId !== '(default)'
+    ? (admin as any).firestore(firebaseConfig.firestoreDatabaseId)
+    : admin.firestore();
 
   // Explicit OPTIONS handler for all routes to help with preflights
   app.options('*', cors());
+
+
 
   // Mailgun Client Lazy Initialization
   let mgClient: any = null;
@@ -125,39 +138,39 @@ async function startServer() {
     });
   };
 
-  // Background Newsletter Worker
-  console.log("Starting Newsletter Background Worker...");
-  const q = query(collection(db, "newsletter_queue"), where("status", "==", "pending"));
-  onSnapshot(q, async (snapshot) => {
-    for (const change of snapshot.docChanges()) {
-      if (change.type === "added") {
-        const docData = change.doc.data();
-        const docId = change.doc.id;
-        
-        console.log(`Processing newsletter in queue: ${docId}`, { subject: docData.subject });
-        
-        try {
-          await sendEmail(docData.subject, docData.body, docData.recipients);
-          await updateDoc(doc(db, "newsletter_queue", docId), {
-            status: 'sent',
-            sentAt: new Date().toISOString()
-          });
-          console.log(`Newsletter ${docId} sent successfully`);
-        } catch (error: any) {
-          console.error(`Failed to send newsletter ${docId}:`, error);
-          await updateDoc(doc(db, "newsletter_queue", docId), {
-            status: 'error',
-            error: error.message,
-            failedAt: new Date().toISOString()
-          });
-        }
-      }
+  // API Routes
+  app.get("/api/health", (req, res) => {
+    res.json({ 
+      status: "ok", 
+      time: new Date().toISOString(),
+      env: process.env.NODE_ENV
+    });
+  });
+
+  app.post("/api/newsletter/send", async (req, res) => {
+    console.log("Newsletter send request received via direct API", {
+      subject: req.body.subject,
+      recipientCount: req.body.recipients?.length
+    });
+
+    const { subject, body, recipients } = req.body;
+
+    if (!subject || !body || !recipients || !Array.isArray(recipients) || recipients.length === 0) {
+      return res.status(400).json({ error: "Missing required fields" });
     }
-  }, (error) => {
-    console.error("Newsletter queue listener error:", error);
+
+    try {
+      const result = await sendEmail(subject, body, recipients);
+      console.log("Newsletter sent successfully:", result.id);
+      res.json({ success: true, messageId: result.id });
+    } catch (error: any) {
+      console.error("Newsletter send error:", error);
+      res.status(500).json({ error: error.message });
+    }
   });
 
   // API 404 handler - helps debug 405/404 issues
+
   app.all("/api/*", (req, res) => {
     res.status(404).json({ 
       error: "API Route Not Found",
