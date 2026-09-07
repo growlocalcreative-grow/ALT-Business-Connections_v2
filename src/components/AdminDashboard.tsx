@@ -689,7 +689,9 @@ export const NewsletterPanel: React.FC<{
         setBody("");
         setIsModalOpen(false);
       } else {
-        throw new Error(data.error || `Server error (${response.status}): ${text.substring(0, 100)}`);
+        const serverVersion = response.headers.get('X-Server-Version') || 'Unknown';
+        const serverId = response.headers.get('X-Server-ID') || 'Unknown';
+        throw new Error(data.error || `Server error (${response.status}) [v:${serverVersion}]. ${text.substring(0, 100)}`);
       }
     } catch (error: any) {
       console.error("Newsletter error details:", error);

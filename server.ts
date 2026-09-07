@@ -13,6 +13,12 @@ async function startServer() {
   const app = express();
   const PORT = 3000;
 
+  app.use((req, res, next) => {
+    res.setHeader('X-Server-Version', '1.0.7');
+    console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
+    next();
+  });
+
   app.use(cors());
   app.use(express.json({ limit: '10mb' }));
 
@@ -37,17 +43,22 @@ async function startServer() {
     res.json({ 
       status: "ok", 
       time: new Date().toISOString(),
-      env: process.env.NODE_ENV
+      env: process.env.NODE_ENV,
+      headers: req.headers
     });
   });
 
-  app.post(["/api/newsletter/send", "/api/newsletter/send/"], async (req, res) => {
-    console.log("Newsletter send request received", {
-      method: req.method,
-      url: req.url,
-      subject: req.body.subject,
-      recipientCount: req.body.recipients?.length
-    });
+  app.route(["/api/newsletter/send", "/api/newsletter/send/"])
+    .get((req, res) => {
+      res.json({ message: "Newsletter API is active. Please use POST to send." });
+    })
+    .post(async (req, res) => {
+      console.log("Newsletter send request received", {
+        method: req.method,
+        url: req.url,
+        subject: req.body.subject,
+        recipientCount: req.body.recipients?.length
+      });
 
     const { subject, body, recipients } = req.body;
 
