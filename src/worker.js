@@ -154,7 +154,8 @@ export default {
           from: env.MAILGUN_FROM_EMAIL || "updates@newsletter.altbusinessconnections.org",
           replyTo: env.MAILGUN_REPLY_TO || "growlocalcreative@gmail.com"
         },
-        version: '1.1.0-worker'
+        envKeys: Object.keys(env).filter(k => k !== 'ASSETS'),
+        version: '1.1.1-worker'
       };
       
       return new Response(JSON.stringify(config), {
