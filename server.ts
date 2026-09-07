@@ -4,6 +4,7 @@ import { fileURLToPath } from "url";
 import { createServer as createViteServer } from "vite";
 import Mailgun from "mailgun.js";
 import formData from "form-data";
+import cors from "cors";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -12,6 +13,7 @@ async function startServer() {
   const app = express();
   const PORT = 3000;
 
+  app.use(cors());
   app.use(express.json({ limit: '10mb' }));
 
   // Mailgun Client Lazy Initialization
@@ -31,8 +33,18 @@ async function startServer() {
   };
 
   // API Routes
-  app.post("/api/newsletter/send", async (req, res) => {
+  app.get("/api/health", (req, res) => {
+    res.json({ 
+      status: "ok", 
+      time: new Date().toISOString(),
+      env: process.env.NODE_ENV
+    });
+  });
+
+  app.post(["/api/newsletter/send", "/api/newsletter/send/"], async (req, res) => {
     console.log("Newsletter send request received", {
+      method: req.method,
+      url: req.url,
       subject: req.body.subject,
       recipientCount: req.body.recipients?.length
     });
@@ -136,6 +148,15 @@ async function startServer() {
         details: error.details || undefined
       });
     }
+  });
+
+  // API 404 handler - helps debug 405/404 issues
+  app.all("/api/*", (req, res) => {
+    res.status(404).json({ 
+      error: "API Route Not Found",
+      method: req.method,
+      path: req.originalUrl 
+    });
   });
 
   // Vite middleware for development
