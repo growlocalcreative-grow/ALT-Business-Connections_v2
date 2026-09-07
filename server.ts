@@ -6,11 +6,9 @@ import Mailgun from "mailgun.js";
 import formData from "form-data";
 import cors from "cors";
 import fs from "fs";
-import admin from "firebase-admin";
+import { initializeApp, getApps } from "firebase-admin/app";
+import { getFirestore } from "firebase-admin/firestore";
 
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 
 async function startServer() {
@@ -18,7 +16,7 @@ async function startServer() {
   const PORT = 3000;
 
   app.use((req, res, next) => {
-    res.setHeader('X-Server-Version', '1.0.7');
+    res.setHeader('X-Server-Version', '1.0.8');
     console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
     next();
   });
@@ -26,20 +24,19 @@ async function startServer() {
   app.use(cors());
   app.use(express.json({ limit: '10mb' }));
 
-  // Initialize Firebase for Client (if needed for other things)
+  // Initialize Firebase Admin for background work and logging
   const firebaseConfig = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'firebase-applet-config.json'), 'utf8'));
   
-  // Initialize Firebase Admin for privileged background work
-  if (!admin.apps.length) {
-    admin.initializeApp({
+  if (!getApps().length) {
+    initializeApp({
       projectId: firebaseConfig.projectId
     });
   }
   
-  // Get the correct Firestore instance (handling named databases)
-  const adminDb = firebaseConfig.firestoreDatabaseId && firebaseConfig.firestoreDatabaseId !== '(default)'
-    ? (admin as any).firestore(firebaseConfig.firestoreDatabaseId)
-    : admin.firestore();
+  // Get the correct Firestore instance
+  const adminDb = getFirestore(firebaseConfig.firestoreDatabaseId && firebaseConfig.firestoreDatabaseId !== '(default)'
+    ? firebaseConfig.firestoreDatabaseId
+    : undefined);
 
   // Explicit OPTIONS handler for all routes to help with preflights
   app.options('*', cors());
@@ -148,25 +145,52 @@ async function startServer() {
   });
 
   app.post("/api/newsletter/send", async (req, res) => {
-    console.log("Newsletter send request received via direct API", {
+    console.log(`[${new Date().toISOString()}] Newsletter send request received`, {
       subject: req.body.subject,
-      recipientCount: req.body.recipients?.length
+      recipientCount: req.body.recipients?.length,
+      recipients: req.body.recipients
     });
 
     const { subject, body, recipients } = req.body;
 
     if (!subject || !body || !recipients || !Array.isArray(recipients) || recipients.length === 0) {
+      console.warn("Newsletter send failed: Missing required fields");
       return res.status(400).json({ error: "Missing required fields" });
     }
 
     try {
+      console.log("Attempting to send email via Mailgun...");
       const result = await sendEmail(subject, body, recipients);
-      console.log("Newsletter sent successfully:", result.id);
+      console.log("Mailgun API accepted the request. Result:", result);
       res.json({ success: true, messageId: result.id });
     } catch (error: any) {
-      console.error("Newsletter send error:", error);
-      res.status(500).json({ error: error.message });
+      console.error("Mailgun send error detected:", {
+        message: error.message,
+        stack: error.stack,
+        details: error.details,
+        status: error.status
+      });
+      res.status(500).json({ 
+        error: error.message,
+        details: error.details || "Check server logs for more information."
+      });
     }
+  });
+
+  // Diagnostic endpoint to check configuration (safely)
+  app.get("/api/newsletter/status", (req, res) => {
+    const config = {
+      mailgun: {
+        apiKeySet: !!process.env.MAILGUN_API_KEY,
+        domain: process.env.MAILGUN_DOMAIN || "newsletter.altbusinessconnections.org",
+        from: process.env.MAILGUN_FROM_EMAIL || "updates@newsletter.altbusinessconnections.org",
+        replyTo: process.env.MAILGUN_REPLY_TO || "growlocalcreative@gmail.com"
+      },
+      env: process.env.NODE_ENV,
+      version: '1.0.8'
+    };
+    console.log("Diagnostic status requested:", config);
+    res.json(config);
   });
 
   // API 404 handler - helps debug 405/404 issues
@@ -184,7 +208,7 @@ async function startServer() {
     const vite = await createViteServer({
       server: { 
         middlewareMode: true,
-        hmr: process.env.DISABLE_HMR !== 'true'
+        hmr: false
       },
       appType: "spa",
     });

@@ -662,11 +662,11 @@ export const NewsletterPanel: React.FC<{
     setStatus(null);
 
     try {
-      // Use direct Cloud Run URL if available to bypass static host 405 errors
-      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || window.location.origin;
-      const apiUrl = `${apiBaseUrl.replace(/\/$/, '')}/api/newsletter/send`;
+      // Revert to relative path to use the domain host as requested by user
+      // If Cloudflare is configured correctly, this will hit the backend API
+      const apiUrl = `/api/newsletter/send`;
       
-      console.log("Sending newsletter via direct API:", apiUrl);
+      console.log("Sending newsletter via domain host API:", apiUrl);
 
       const response = await fetch(apiUrl, {
         method: "POST",
@@ -680,7 +680,12 @@ export const NewsletterPanel: React.FC<{
         }),
       });
 
-      const data = await response.json();
+      let data;
+      try {
+        data = await response.json();
+      } catch (e) {
+        throw new Error(`Server returned invalid response format (${response.status})`);
+      }
 
       if (response.ok) {
         // Also save to Firestore for history/tracking
@@ -709,7 +714,11 @@ export const NewsletterPanel: React.FC<{
       }
     } catch (error: any) {
       console.error("Newsletter error details:", error);
-      setStatus({ type: 'error', message: error.message || "An unexpected error occurred while sending." });
+      const is405 = error.message?.includes('405');
+      const errorMessage = is405 
+        ? "The domain host (Cloudflare) still returned a 405 error. Please ensure the API is correctly routed or use the direct API URL in settings."
+        : (error.message || "An unexpected error occurred while sending.");
+      setStatus({ type: 'error', message: errorMessage });
     } finally {
       setIsSending(false);
     }
@@ -845,12 +854,21 @@ export const AdminDashboard: React.FC = () => {
   };
 
   useEffect(() => {
+    let unsubAdmin: (() => void) | null = null;
+    
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
+      
+      // Clean up previous admin listener if it exists
+      if (unsubAdmin) {
+        unsubAdmin();
+        unsubAdmin = null;
+      }
+
       if (currentUser) {
         // Check if user is admin
         const adminDoc = doc(db, "admins", currentUser.uid);
-        const unsubAdmin = onSnapshot(adminDoc, (snapshot) => {
+        unsubAdmin = onSnapshot(adminDoc, (snapshot) => {
           setIsAdmin(snapshot.exists());
           setIsLoading(false);
         }, (error) => {
@@ -858,13 +876,16 @@ export const AdminDashboard: React.FC = () => {
           setIsAdmin(false);
           setIsLoading(false);
         });
-        return () => unsubAdmin();
       } else {
         setIsAdmin(false);
         setIsLoading(false);
       }
     });
-    return () => unsubscribe();
+
+    return () => {
+      unsubscribe();
+      if (unsubAdmin) unsubAdmin();
+    };
   }, []);
 
   useEffect(() => {
