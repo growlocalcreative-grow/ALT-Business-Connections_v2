@@ -53,12 +53,14 @@ import {
   Briefcase,
   Handshake,
   HelpCircle,
-  Shield
+  Shield,
+  Mail,
+  Send
 } from "lucide-react";
 import { cn } from "../lib/utils";
 import { Button, Card, Section } from "./UI";
 import { Business, MembershipApplication, SiteSettings, Testimonial, AppEvent } from "../types";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion } from "motion/react";
 
 interface EditModalProps {
   isOpen: boolean;
@@ -483,11 +485,302 @@ const MessageModal: React.FC<{
   );
 };
 
+const RecipientModal: React.FC<{
+  isOpen: boolean;
+  onClose: () => void;
+  recipients: { email: string; name: string; source: string }[];
+  selectedEmails: Set<string>;
+  onToggleEmail: (email: string) => void;
+  onToggleAll: () => void;
+  onConfirm: () => void;
+  isSending: boolean;
+}> = ({ isOpen, onClose, recipients, selectedEmails, onToggleEmail, onToggleAll, onConfirm, isSending }) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-[#1a3a3a]/60 backdrop-blur-sm">
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[80vh] flex flex-col overflow-hidden border border-[#d4af37]/20"
+      >
+        <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+          <div>
+            <h3 className="text-xl font-bold text-[#1a3a3a]">Review Recipients</h3>
+            <p className="text-xs text-slate-500 mt-1">Select exactly who should receive this update.</p>
+          </div>
+          <button onClick={onClose} className="p-2 hover:bg-slate-200 rounded-full transition-colors">
+            <X className="w-5 h-5 text-slate-400" />
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-6">
+          <div className="flex items-center justify-between mb-4 pb-2 border-b border-slate-100">
+            <span className="text-sm font-bold text-slate-600">{selectedEmails.size} of {recipients.length} Selected</span>
+            <button 
+              onClick={onToggleAll}
+              className="text-xs font-bold text-[#d4af37] uppercase tracking-widest hover:underline"
+            >
+              {selectedEmails.size === recipients.length ? "Deselect All" : "Select All"}
+            </button>
+          </div>
+
+          <div className="space-y-2">
+            {recipients.map((r) => (
+              <label 
+                key={r.email} 
+                className={cn(
+                  "flex items-center justify-between p-3 rounded-xl border transition-all cursor-pointer",
+                  selectedEmails.has(r.email) ? "bg-[#d4af37]/5 border-[#d4af37]/30" : "bg-white border-slate-100 hover:border-slate-200"
+                )}
+              >
+                <div className="flex items-center gap-3">
+                  <div className={cn(
+                    "w-5 h-5 rounded border flex items-center justify-center transition-all",
+                    selectedEmails.has(r.email) ? "bg-[#d4af37] border-[#d4af37]" : "bg-white border-slate-300"
+                  )}>
+                    {selectedEmails.has(r.email) && <Check className="w-3 h-3 text-white" />}
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-[#1a3a3a]">{r.name || "Member"}</p>
+                    <p className="text-xs text-slate-400">{r.email}</p>
+                  </div>
+                </div>
+                <span className="text-[10px] font-bold px-2 py-1 bg-slate-100 text-slate-500 rounded-full uppercase tracking-tighter">
+                  {r.source}
+                </span>
+                <input 
+                  type="checkbox" 
+                  className="hidden" 
+                  checked={selectedEmails.has(r.email)}
+                  onChange={() => onToggleEmail(r.email)}
+                />
+              </label>
+            ))}
+          </div>
+        </div>
+
+        <div className="p-6 bg-slate-50 border-t border-slate-100 flex gap-4">
+          <Button variant="outline" onClick={onClose} className="flex-1">Cancel</Button>
+          <Button 
+            variant="primary" 
+            onClick={onConfirm} 
+            disabled={isSending || selectedEmails.size === 0}
+            className="flex-[2] flex items-center justify-center gap-2"
+          >
+            {isSending ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Sending...
+              </>
+            ) : (
+              <>
+                <Send className="w-4 h-4" />
+                Send to {selectedEmails.size} Neighbors
+              </>
+            )}
+          </Button>
+        </div>
+      </motion.div>
+    </div>
+  );
+};
+
+export const NewsletterPanel: React.FC<{ 
+  businesses: Business[], 
+  memberships: MembershipApplication[],
+  isLoading?: boolean
+}> = ({ businesses, memberships, isLoading = false }) => {
+  const [subject, setSubject] = useState("");
+  const [body, setBody] = useState("");
+  const [isSending, setIsSending] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [status, setStatus] = useState<{ type: 'success' | 'error', message: string } | null>(null);
+
+  // Extract unique recipients with metadata
+  const recipientMap = new Map<string, { email: string; name: string; source: string }>();
+  
+  businesses.forEach(b => {
+    if (b.email && b.email.includes('@')) {
+      recipientMap.set(b.email, { email: b.email, name: b.name, source: 'Business' });
+    }
+  });
+
+  memberships.forEach(m => {
+    if (m.email && m.email.includes('@')) {
+      if (!recipientMap.has(m.email)) {
+        recipientMap.set(m.email, { email: m.email, name: m.name, source: 'Application' });
+      }
+    }
+  });
+
+  const allRecipients = Array.from(recipientMap.values());
+  const [selectedEmails, setSelectedEmails] = useState<Set<string>>(new Set());
+
+  // Initialize/Update selected emails when data arrives
+  useEffect(() => {
+    if (!isLoading && allRecipients.length > 0 && selectedEmails.size === 0) {
+      setSelectedEmails(new Set(allRecipients.map(r => r.email)));
+    }
+  }, [allRecipients.length, isLoading]);
+
+  const toggleEmail = (email: string) => {
+    const next = new Set(selectedEmails);
+    if (next.has(email)) next.delete(email);
+    else next.add(email);
+    setSelectedEmails(next);
+  };
+
+  const toggleAll = () => {
+    if (selectedEmails.size === allRecipients.length) {
+      setSelectedEmails(new Set());
+    } else {
+      setSelectedEmails(new Set(allRecipients.map(r => r.email)));
+    }
+  };
+
+  const handleSendClick = () => {
+    if (!subject.trim() || !body.trim()) {
+      setStatus({ type: 'error', message: "Please provide a subject and message body first." });
+      // Scroll to status if needed or just let the UI show it
+      return;
+    }
+
+    if (allRecipients.length === 0) {
+      setStatus({ type: 'error', message: "No recipients found. Make sure your Directory or Applications lists have valid email addresses." });
+      return;
+    }
+
+    setIsModalOpen(true);
+  };
+
+  const confirmSend = async () => {
+    if (selectedEmails.size === 0) return;
+
+    setIsSending(true);
+    setStatus(null);
+
+    try {
+      const response = await fetch("/api/newsletter/send", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          subject,
+          body,
+          recipients: Array.from(selectedEmails),
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setStatus({ type: 'success', message: "Newsletter sent successfully!" });
+        setSubject("");
+        setBody("");
+        setIsModalOpen(false);
+      } else {
+        throw new Error(data.error || "Failed to send newsletter");
+      }
+    } catch (error: any) {
+      console.error("Newsletter error:", error);
+      setStatus({ type: 'error', message: error.message });
+      setIsModalOpen(false);
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  return (
+    <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden p-8">
+      <RecipientModal 
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        recipients={allRecipients}
+        selectedEmails={selectedEmails}
+        onToggleEmail={toggleEmail}
+        onToggleAll={toggleAll}
+        onConfirm={confirmSend}
+        isSending={isSending}
+      />
+
+      <div className="flex items-center gap-3 mb-8">
+        <div className="p-3 bg-[#d4af37]/10 rounded-xl">
+          <Mail className="w-6 h-6 text-[#d4af37]" />
+        </div>
+        <div>
+          <h2 className="text-2xl font-bold text-[#1a3a3a]">Blast Newsletter</h2>
+          <p className="text-slate-500">Send an update to your {allRecipients.length} members & neighbors.</p>
+        </div>
+      </div>
+
+      <div className="space-y-6">
+        <div className="space-y-2">
+          <label className="text-xs font-bold text-[#1a3a3a] uppercase tracking-widest">Email Subject</label>
+          <input
+            type="text"
+            value={subject}
+            onChange={(e) => setSubject(e.target.value)}
+            placeholder="e.g. September Member Update & Yard Sale Details"
+            className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-[#d4af37] outline-none"
+          />
+        </div>
+
+        <div className="space-y-2">
+          <label className="text-xs font-bold text-[#1a3a3a] uppercase tracking-widest">Message Content</label>
+          <textarea
+            value={body}
+            onChange={(e) => setBody(e.target.value)}
+            rows={10}
+            placeholder="Write your newsletter here..."
+            className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-[#d4af37] outline-none resize-none"
+          />
+          <p className="text-xs text-slate-400">Pro-tip: Keep it concise and neighborly. The app's header and footer will be added automatically.</p>
+        </div>
+
+        {status && (
+          <div className={cn(
+            "p-4 rounded-xl flex items-center gap-3",
+            status.type === 'success' ? "bg-green-50 text-green-700 border border-green-100" : "bg-red-50 text-red-700 border border-red-100"
+          )}>
+            {status.type === 'success' ? <CheckCircle className="w-5 h-5" /> : <ShieldAlert className="w-5 h-5" />}
+            <p className="text-sm font-medium">{status.message}</p>
+          </div>
+        )}
+
+        <Button 
+          onClick={handleSendClick} 
+          disabled={isSending || isLoading}
+          className="w-full py-4 text-lg flex items-center justify-center gap-2"
+        >
+          {isLoading ? (
+            <>
+              <Loader2 className="w-5 h-5 animate-spin" />
+              Syncing Neighbors...
+            </>
+          ) : isSending ? (
+            <>
+              <Loader2 className="w-5 h-5 animate-spin" />
+              Sending...
+            </>
+          ) : (
+            <>
+              <Send className="w-5 h-5" />
+              Review & Send to {allRecipients.length} Neighbors
+            </>
+          )}
+        </Button>
+      </div>
+    </div>
+  );
+};
+
 export const AdminDashboard: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"directory" | "members" | "settings" | "testimonials" | "events">("directory");
+  const [activeTab, setActiveTab] = useState<"directory" | "members" | "settings" | "testimonials" | "events" | "newsletter">("directory");
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [itemsPerPage, setItemsPerPage] = useState(15);
@@ -732,7 +1025,7 @@ export const AdminDashboard: React.FC = () => {
       website: m.website,
       logo: m.logo || "",
       isTextEnabled: m.isTextEnabled,
-      isABCClubMember: true, // Auto-tag as ABC Club Member
+      isABCClubMember: m.joinClub, // Respect user preference from application
       timestamp: new Date().toISOString()
     });
     setApprovingId(m.id || null);
@@ -995,92 +1288,99 @@ export const AdminDashboard: React.FC = () => {
           </div>
         </header>
 
-        <div className="flex flex-col md:flex-row gap-4 mb-8">
-          <div className="flex gap-2 bg-white p-1.5 rounded-2xl shadow-sm border border-slate-100 w-fit">
-            <button
-              onClick={() => { setActiveTab("directory"); setSearchTerm(""); }}
-              className={`flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-bold transition-all ${
-                activeTab === "directory" ? "bg-[#1a3a3a] text-white shadow-lg" : "text-slate-500 hover:bg-slate-50"
-              }`}
-            >
-              <Building2 className="w-4 h-4" />
-              Directory
-            </button>
-            <button
-              onClick={() => { setActiveTab("members"); setSearchTerm(""); }}
-              className={`flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-bold transition-all ${
-                activeTab === "members" ? "bg-[#1a3a3a] text-white shadow-lg" : "text-slate-500 hover:bg-slate-50"
-              }`}
-            >
-              <Users className="w-4 h-4" />
-              Applications
-              {memberships.length > 0 && (
-                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#d4af37] text-[10px] text-white">
-                  {memberships.length}
-                </span>
-              )}
-            </button>
-            <button
-              onClick={() => { setActiveTab("settings"); setSearchTerm(""); }}
-              className={`flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-bold transition-all ${
-                activeTab === "settings" ? "bg-[#1a3a3a] text-white shadow-lg" : "text-slate-500 hover:bg-slate-50"
-              }`}
-            >
-              <Settings className="w-4 h-4" />
-              Site Settings
-            </button>
-            <button
-              onClick={() => { setActiveTab("testimonials"); setSearchTerm(""); }}
-              className={`flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-bold transition-all ${
-                activeTab === "testimonials" ? "bg-[#1a3a3a] text-white shadow-lg" : "text-slate-500 hover:bg-slate-50"
-              }`}
-            >
-              <Quote className="w-4 h-4" />
-              Voices
-            </button>
-            <button
-              onClick={() => { setActiveTab("events"); setSearchTerm(""); }}
-              className={`flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-bold transition-all ${
-                activeTab === "events" ? "bg-[#1a3a3a] text-white shadow-lg" : "text-slate-500 hover:bg-slate-50"
-              }`}
-            >
-              <Calendar className="w-4 h-4" />
-              Calendar
-            </button>
-          </div>
-
-          {(activeTab === "directory" || activeTab === "members") && (
-            <div className="flex flex-1 gap-4 max-w-2xl">
-              <div className="relative flex-1">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                <input
-                  type="text"
-                  placeholder={`Search ${activeTab === "directory" ? "listings" : "applications"}...`}
-                  value={searchTerm}
-                  onChange={(e) => {
-                    setSearchTerm(e.target.value);
-                    setCurrentPage(1);
-                  }}
-                  className="w-full pl-11 pr-4 py-3.5 bg-white border border-slate-100 rounded-2xl shadow-sm focus:ring-2 focus:ring-[#d4af37] outline-none"
-                />
-              </div>
-              {activeTab === "directory" && (
-                <select
-                  value={selectedCategory}
-                  onChange={(e) => {
-                    setSelectedCategory(e.target.value);
-                    setCurrentPage(1);
-                  }}
-                  className="px-4 py-3.5 bg-white border border-slate-100 rounded-2xl shadow-sm focus:ring-2 focus:ring-[#d4af37] outline-none text-sm font-medium text-slate-600 min-w-[150px]"
-                >
-                  {categories.map(cat => (
-                    <option key={cat} value={cat}>{cat}</option>
-                  ))}
-                </select>
-              )}
-            </div>
-          )}
+        <div className="flex flex-wrap gap-2 bg-white p-1.5 rounded-2xl shadow-sm border border-slate-100 w-fit mb-8">
+          <button
+            onClick={() => { setActiveTab("directory"); setSearchTerm(""); }}
+            className={`flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-bold transition-all ${
+              activeTab === "directory" ? "bg-[#1a3a3a] text-white shadow-lg" : "text-slate-500 hover:bg-slate-50"
+            }`}
+          >
+            <Building2 className="w-4 h-4" />
+            Directory
+          </button>
+          <button
+            onClick={() => { setActiveTab("members"); setSearchTerm(""); }}
+            className={`flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-bold transition-all ${
+              activeTab === "members" ? "bg-[#1a3a3a] text-white shadow-lg" : "text-slate-500 hover:bg-slate-50"
+            }`}
+          >
+            <Users className="w-4 h-4" />
+            Applications
+            {memberships.length > 0 && (
+              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#d4af37] text-[10px] text-white">
+                {memberships.length}
+              </span>
+            )}
+          </button>
+          <button
+            onClick={() => { setActiveTab("settings"); setSearchTerm(""); }}
+            className={`flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-bold transition-all ${
+              activeTab === "settings" ? "bg-[#1a3a3a] text-white shadow-lg" : "text-slate-500 hover:bg-slate-50"
+            }`}
+          >
+            <Settings className="w-4 h-4" />
+            Site Settings
+          </button>
+          <button
+            onClick={() => { setActiveTab("testimonials"); setSearchTerm(""); }}
+            className={`flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-bold transition-all ${
+              activeTab === "testimonials" ? "bg-[#1a3a3a] text-white shadow-lg" : "text-slate-500 hover:bg-slate-50"
+            }`}
+          >
+            <Quote className="w-4 h-4" />
+            Voices
+          </button>
+          <button
+            onClick={() => { setActiveTab("events"); setSearchTerm(""); }}
+            className={`flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-bold transition-all ${
+              activeTab === "events" ? "bg-[#1a3a3a] text-white shadow-lg" : "text-slate-500 hover:bg-slate-50"
+            }`}
+          >
+            <Calendar className="w-4 h-4" />
+            Calendar
+          </button>
+          <button
+            onClick={() => { setActiveTab("newsletter"); setSearchTerm(""); }}
+            className={`flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-bold transition-all ${
+              activeTab === "newsletter" ? "bg-[#1a3a3a] text-white shadow-lg" : "text-slate-500 hover:bg-slate-50"
+            }`}
+          >
+            <Mail className="w-4 h-4" />
+            Newsletter
+          </button>
         </div>
+
+        {(activeTab === "directory" || activeTab === "members") && (
+          <div className="flex flex-col md:flex-row gap-4 mb-8">
+            <div className="relative flex-1 max-w-2xl">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <input
+                type="text"
+                placeholder={`Search ${activeTab === "directory" ? "listings" : "applications"}...`}
+                value={searchTerm}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="w-full pl-11 pr-4 py-3.5 bg-white border border-slate-100 rounded-2xl shadow-sm focus:ring-2 focus:ring-[#d4af37] outline-none"
+              />
+            </div>
+            {activeTab === "directory" && (
+              <select
+                value={selectedCategory}
+                onChange={(e) => {
+                  setSelectedCategory(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="px-6 py-3.5 bg-white border border-slate-100 rounded-2xl shadow-sm focus:ring-2 focus:ring-[#d4af37] outline-none text-sm font-bold text-[#1a3a3a] min-w-[200px] cursor-pointer"
+              >
+                {categories.map(cat => (
+                  <option key={cat} value={cat}>{cat}</option>
+                ))}
+              </select>
+            )}
+          </div>
+        )}
 
         <div className="grid gap-8">
           {activeTab === "directory" && (
@@ -1246,7 +1546,16 @@ export const AdminDashboard: React.FC = () => {
                       </td>
                       <td className="px-6 py-4">
                         <p className="text-sm font-bold text-[#1a3a3a]">{m.businessName}</p>
-                        <p className="text-xs text-[#d4af37]">{m.category}</p>
+                        <p className="text-xs text-[#d4af37] mb-1">{m.category}</p>
+                        {m.joinClub ? (
+                          <span className="text-[10px] font-bold text-[#d4af37] uppercase tracking-wider bg-[#d4af37]/5 px-2 py-0.5 rounded border border-[#d4af37]/20">
+                            Club Interest
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider bg-slate-50 px-2 py-0.5 rounded border border-slate-200">
+                            Listing Only
+                          </span>
+                        )}
                       </td>
                       <td className="px-6 py-4">
                         <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-blue-50 text-blue-600 text-[10px] font-bold uppercase tracking-wider border border-blue-100">
@@ -1698,6 +2007,14 @@ export const AdminDashboard: React.FC = () => {
                 </table>
               </div>
             </div>
+          )}
+
+          {activeTab === "newsletter" && (
+            <NewsletterPanel 
+              businesses={businesses} 
+              memberships={memberships} 
+              isLoading={isLoading}
+            />
           )}
         </div>
       </Section>

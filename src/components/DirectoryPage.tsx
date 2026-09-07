@@ -387,7 +387,10 @@ export const DirectoryPage = () => {
         isOpen={isModalOpen} 
         onClose={() => setIsModalOpen(false)} 
         title="Add My Business"
-        hideDirectoryCheckbox={true}
+        defaultJoinClub={false}
+        showJoinClubCheckbox={true}
+        defaultDirectory={true}
+        showDirectoryCheckbox={false}
       />
 
       <BusinessDetailModal 

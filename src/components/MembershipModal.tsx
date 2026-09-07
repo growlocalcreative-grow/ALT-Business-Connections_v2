@@ -6,14 +6,20 @@ interface MembershipModalProps {
   isOpen: boolean;
   onClose: () => void;
   title?: string;
-  hideDirectoryCheckbox?: boolean;
+  defaultJoinClub?: boolean;
+  showJoinClubCheckbox?: boolean;
+  defaultDirectory?: boolean;
+  showDirectoryCheckbox?: boolean;
 }
 
 export const MembershipModal = ({ 
   isOpen, 
   onClose, 
   title = "Membership Application",
-  hideDirectoryCheckbox = false 
+  defaultJoinClub = true,
+  showJoinClubCheckbox = false,
+  defaultDirectory = true,
+  showDirectoryCheckbox = true,
 }: MembershipModalProps) => {
   return (
     <AnimatePresence>
@@ -43,7 +49,13 @@ export const MembershipModal = ({
             </div>
 
             <div className="p-8 max-h-[80vh] overflow-y-auto">
-              <ContactForm onSuccess={onClose} hideDirectoryCheckbox={hideDirectoryCheckbox} />
+              <ContactForm 
+                onSuccess={onClose} 
+                defaultJoinClub={defaultJoinClub}
+                showJoinClubCheckbox={showJoinClubCheckbox}
+                defaultDirectory={defaultDirectory}
+                showDirectoryCheckbox={showDirectoryCheckbox}
+              />
             </div>
           </motion.div>
         </div>

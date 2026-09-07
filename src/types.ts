@@ -48,6 +48,7 @@ export interface ContactFormData {
   website: string;
   logo?: string;
   includeInDirectory: boolean;
+  joinClub: boolean;
 }
 
 export interface MembershipApplication extends ContactFormData {

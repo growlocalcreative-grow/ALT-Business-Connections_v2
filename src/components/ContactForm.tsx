@@ -19,6 +19,7 @@ const contactSchema = z.object({
   isTextEnabled: z.boolean(),
   website: z.string().min(1, "Website URL is required"),
   includeInDirectory: z.boolean(),
+  joinClub: z.boolean(),
   logo: z.string().optional(),
 });
 
@@ -26,10 +27,16 @@ type ContactFormData = z.infer<typeof contactSchema>;
 
 export const ContactForm = ({ 
   onSuccess, 
-  hideDirectoryCheckbox = false 
+  defaultJoinClub = true,
+  showJoinClubCheckbox = true,
+  defaultDirectory = true,
+  showDirectoryCheckbox = true,
 }: { 
   onSuccess?: () => void;
-  hideDirectoryCheckbox?: boolean;
+  defaultJoinClub?: boolean;
+  showJoinClubCheckbox?: boolean;
+  defaultDirectory?: boolean;
+  showDirectoryCheckbox?: boolean;
 }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
@@ -44,7 +51,8 @@ export const ContactForm = ({
   } = useForm<ContactFormData>({
     resolver: zodResolver(contactSchema),
     defaultValues: {
-      includeInDirectory: true,
+      includeInDirectory: defaultDirectory,
+      joinClub: defaultJoinClub,
       phone: "",
       isTextEnabled: false,
       website: "",
@@ -110,8 +118,7 @@ export const ContactForm = ({
         handleFirestoreError(error, OperationType.CREATE, "memberships");
       }
 
-      // If user wants to be in directory (or it's forced by hiding the checkbox), also add to businesses
-      if (data.includeInDirectory || hideDirectoryCheckbox) {
+      if (data.includeInDirectory) {
         try {
           await addDoc(collection(db, "businesses"), {
             name: data.businessName,
@@ -121,6 +128,7 @@ export const ContactForm = ({
             email: data.email,
             phone: data.phone,
             isTextEnabled: data.isTextEnabled,
+            isABCClubMember: data.joinClub,
             website: formattedWebsite,
             logo: data.logo || "",
             timestamp: new Date().toISOString(),
@@ -320,22 +328,40 @@ export const ContactForm = ({
         </div>
       </div>
 
-      {!hideDirectoryCheckbox && (
-        <div className="flex items-center gap-3 py-4 border-y border-[#d4af37]/10">
-          <input
-            type="checkbox"
-            id="includeInDirectory"
-            {...register("includeInDirectory")}
-            className="w-5 h-5 rounded border-[#d4af37] text-[#d4af37] focus:ring-[#d4af37]"
-          />
-          <label htmlFor="includeInDirectory" className="text-sm text-[#1a3a3a] font-medium cursor-pointer">
-            Include my business in the public ALT Business Directory
-          </label>
+      {(showDirectoryCheckbox || showJoinClubCheckbox) && (
+        <div className="space-y-4 py-4 border-y border-[#d4af37]/10">
+          {showDirectoryCheckbox && (
+            <div className="flex items-center gap-3">
+              <input
+                type="checkbox"
+                id="includeInDirectory"
+                {...register("includeInDirectory")}
+                className="w-5 h-5 rounded border-[#d4af37] text-[#d4af37] focus:ring-[#d4af37]"
+              />
+              <label htmlFor="includeInDirectory" className="text-sm text-[#1a3a3a] font-medium cursor-pointer">
+                Include my business in the public ALT Business Directory
+              </label>
+            </div>
+          )}
+          
+          {showJoinClubCheckbox && (
+            <div className="flex items-center gap-3">
+              <input
+                type="checkbox"
+                id="joinClub"
+                {...register("joinClub")}
+                className="w-5 h-5 rounded border-[#d4af37] text-[#d4af37] focus:ring-[#d4af37]"
+              />
+              <label htmlFor="joinClub" className="text-sm text-[#1a3a3a] font-medium cursor-pointer">
+                Join the ALT Business Connections Club
+              </label>
+            </div>
+          )}
         </div>
       )}
 
       <Button type="submit" className="w-full py-4 text-lg" variant="primary">
-        {isSubmitting ? "Submitting..." : hideDirectoryCheckbox ? "Add My Business" : "Join Our Cooperative"}
+        {isSubmitting ? "Submitting..." : (showJoinClubCheckbox && !showDirectoryCheckbox) ? "Add My Business" : "Join Our Cooperative"}
       </Button>
     </motion.form>
   );

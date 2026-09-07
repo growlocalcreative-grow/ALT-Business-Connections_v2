@@ -361,7 +361,10 @@ const HomePage = ({ onJoinClick, settings }: { onJoinClick: () => void; settings
                 className="w-full overflow-hidden mt-8"
               >
                 <div className="bg-white p-8 sm:p-12 rounded-3xl shadow-xl border border-[#d4af37]/10">
-                  <ContactForm />
+                  <ContactForm 
+                    defaultJoinClub={true}
+                    showJoinClubCheckbox={false}
+                  />
                 </div>
               </motion.div>
             )}
