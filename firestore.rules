@@ -102,6 +102,14 @@ service cloud.firestore {
         && data.get('endTime', '') is string && data.get('endTime', '').size() <= 100;
     }
 
+    function isValidNewsletter(data) {
+      return data.get('subject', '') is string && data.get('subject', '').size() <= 500
+        && data.get('body', '') is string && data.get('body', '').size() <= 50000
+        && (data.get('recipients', []) is list)
+        && data.get('status', 'pending') == 'pending'
+        && (data.get('createdAt', null) == request.time || data.get('createdAt', null) == null);
+    }
+
     // 4. Collection Rules
 
     match /admins/{adminUid} {
@@ -139,6 +147,11 @@ service cloud.firestore {
       allow read: if true;
       allow create, update: if isAdmin() && isValidEvent(incoming());
       allow delete: if isAdmin();
+    }
+
+    match /newsletter_queue/{newsletterId} {
+      allow create: if isAdmin() && isValidNewsletter(incoming());
+      allow read, update, delete: if isAdmin();
     }
   }
 }

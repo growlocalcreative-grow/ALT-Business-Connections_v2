@@ -100,6 +100,22 @@
         "endTime": { "type": "string" }
       },
       "required": ["title", "date", "time", "location", "category", "description", "host", "hostEmail", "hostPhone", "startTime", "endTime"]
+    },
+    "NewsletterRequest": {
+      "title": "Newsletter Request",
+      "description": "A request to blast a newsletter to the community.",
+      "type": "object",
+      "properties": {
+        "subject": { "type": "string" },
+        "body": { "type": "string" },
+        "recipients": { "type": "array" },
+        "status": { "type": "string", "enum": ["pending", "sent", "error"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "sentAt": { "type": "string", "format": "date-time" },
+        "error": { "type": "string" },
+        "createdBy": { "type": "string" }
+      },
+      "required": ["subject", "body", "recipients", "status", "createdAt"]
     }
   },
   "firestore": {
@@ -126,6 +142,10 @@
     "events/{eventId}": {
       "schema": "Event",
       "description": "Collection of community events."
+    },
+    "newsletter_queue/{newsletterId}": {
+      "schema": "NewsletterRequest",
+      "description": "Queue for background newsletter processing."
     }
   }
 }

@@ -8,7 +8,8 @@ import {
   updateDoc,
   addDoc,
   query,
-  orderBy
+  orderBy,
+  serverTimestamp
 } from "firebase/firestore";
 import { 
   signInWithPopup, 
@@ -661,45 +662,26 @@ export const NewsletterPanel: React.FC<{
     setStatus(null);
 
     try {
-      const apiUrl = `${window.location.origin}/newsletter-v1/send`;
-      console.log("Sending newsletter to:", apiUrl);
-      
-      const response = await fetch(apiUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          subject,
-          body,
-          recipients: Array.from(selectedEmails),
-        }),
-      });
+      // Send via Firestore Queue to bypass 405 Method Not Allowed errors on static hosts
+      const newsletterData = {
+        subject,
+        body,
+        recipients: Array.from(selectedEmails),
+        status: 'pending',
+        createdAt: serverTimestamp(),
+        createdBy: auth.currentUser?.email || 'admin',
+        recipientCount: selectedEmails.size
+      };
 
-      let data;
-      const text = await response.text();
-      
-      try {
-        data = text ? JSON.parse(text) : {};
-      } catch (e) {
-        console.error("Failed to parse response as JSON:", text);
-        throw new Error(`Server returned invalid response (${response.status})`);
-      }
+      await addDoc(collection(db, "newsletter_queue"), newsletterData);
 
-      if (response.ok) {
-        setStatus({ type: 'success', message: "Newsletter sent successfully!" });
-        setSubject("");
-        setBody("");
-        setIsModalOpen(false);
-      } else {
-        const serverVersion = response.headers.get('X-Server-Version') || 'Unknown';
-        const serverId = response.headers.get('X-Server-ID') || 'Unknown';
-        throw new Error(data.error || `Server error (${response.status}) [v:${serverVersion}]. ${text.substring(0, 100)}`);
-      }
-    } catch (error: any) {
-      console.error("Newsletter error details:", error);
-      setStatus({ type: 'error', message: error.message || "An unexpected error occurred while sending." });
+      setStatus({ type: 'success', message: "Newsletter queued for sending! Our background worker will process it shortly." });
+      setSubject("");
+      setBody("");
       setIsModalOpen(false);
+    } catch (error: any) {
+      console.error("Newsletter queue error:", error);
+      setStatus({ type: 'error', message: error.message || "Failed to queue newsletter for sending." });
     } finally {
       setIsSending(false);
     }
@@ -718,7 +700,6 @@ export const NewsletterPanel: React.FC<{
         isSending={isSending}
       />
 
-      <div className="flex items-center justify-between mb-8">
         <div className="flex items-center gap-3">
           <div className="p-3 bg-[#d4af37]/10 rounded-xl">
             <Mail className="w-6 h-6 text-[#d4af37]" />
@@ -728,26 +709,6 @@ export const NewsletterPanel: React.FC<{
             <p className="text-slate-500">Send an update to your {allRecipients.length} members & neighbors.</p>
           </div>
         </div>
-        <button 
-          onClick={async () => {
-            try {
-              const testPaths = ['/api/health', '/newsletter-v1/send'];
-              let results = [];
-              for (const path of testPaths) {
-                const res = await fetch(`${window.location.origin}${path}`);
-                const version = res.headers.get('X-Server-Version') || 'Unknown';
-                results.push(`${path}: ${res.status} [v:${version}]`);
-              }
-              alert(`API Connection Test:\n${results.join('\n')}\nOrigin: ${window.location.origin}`);
-            } catch (e: any) {
-              alert(`API Connection Failed: ${e.message}`);
-            }
-          }}
-          className="text-[10px] uppercase tracking-widest font-bold text-slate-400 hover:text-[#d4af37] transition-colors"
-        >
-          Test API Connection
-        </button>
-      </div>
 
       <div className="space-y-6">
         <div className="space-y-2">
