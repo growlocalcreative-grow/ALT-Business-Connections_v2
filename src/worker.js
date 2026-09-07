@@ -77,7 +77,7 @@ export default {
                       <tr>
                         <td style="padding: 40px 30px;" class="content-box">
                           <div style="font-size: 16px;">
-                            ${body.replace(/\\n/g, '<br>')}
+                            ${body.replace(/\n/g, '<br>')}
                           </div>
                           
                           <!-- Compliance Footer -->
@@ -104,7 +104,7 @@ export default {
         const toField = recipients.join(', ');
 
         const mailgunResponse = await fetch(
-          \`https://api.mailgun.net/v3/\${domain}/messages\`,
+          `https://api.mailgun.net/v3/${domain}/messages`,
           {
             method: "POST",
             headers: {
@@ -116,7 +116,7 @@ export default {
               to: toField,
               subject: subject,
               html: htmlTemplate,
-              text: \`\${body}\\n\\n---\\nALT Business Connections\\nwww.altbusinessconnections.org\\nAuburn Lake Trails, CA\\nTo unsubscribe, please reply to this email with "Unsubscribe".\`,
+              text: `${body}\n\n---\nALT Business Connections\nwww.altbusinessconnections.org\nAuburn Lake Trails, CA\nTo unsubscribe, please reply to this email with "Unsubscribe".`,
               'h:Reply-To': replyTo,
               'o:tracking': 'yes',
               'o:tracking-clicks': 'yes',
