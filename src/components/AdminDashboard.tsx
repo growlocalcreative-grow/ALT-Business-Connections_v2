@@ -673,7 +673,15 @@ export const NewsletterPanel: React.FC<{
         }),
       });
 
-      const data = await response.json();
+      let data;
+      const text = await response.text();
+      
+      try {
+        data = text ? JSON.parse(text) : {};
+      } catch (e) {
+        console.error("Failed to parse response as JSON:", text);
+        throw new Error(`Server returned invalid response (${response.status})`);
+      }
 
       if (response.ok) {
         setStatus({ type: 'success', message: "Newsletter sent successfully!" });
@@ -681,11 +689,11 @@ export const NewsletterPanel: React.FC<{
         setBody("");
         setIsModalOpen(false);
       } else {
-        throw new Error(data.error || "Failed to send newsletter");
+        throw new Error(data.error || `Server error (${response.status}): ${text.substring(0, 100)}`);
       }
     } catch (error: any) {
-      console.error("Newsletter error:", error);
-      setStatus({ type: 'error', message: error.message });
+      console.error("Newsletter error details:", error);
+      setStatus({ type: 'error', message: error.message || "An unexpected error occurred while sending." });
       setIsModalOpen(false);
     } finally {
       setIsSending(false);

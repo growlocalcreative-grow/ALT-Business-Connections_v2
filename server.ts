@@ -12,7 +12,7 @@ async function startServer() {
   const app = express();
   const PORT = 3000;
 
-  app.use(express.json());
+  app.use(express.json({ limit: '10mb' }));
 
   // Mailgun Client Lazy Initialization
   let mgClient: any = null;
@@ -20,20 +20,27 @@ async function startServer() {
     if (!mgClient) {
       const apiKey = process.env.MAILGUN_API_KEY;
       if (!apiKey) {
+        console.error("MAILGUN_API_KEY is missing from environment variables");
         throw new Error("MAILGUN_API_KEY is not configured");
       }
       const mailgun = new Mailgun(formData);
       mgClient = mailgun.client({ username: 'api', key: apiKey });
+      console.log("Mailgun client initialized successfully");
     }
     return mgClient;
   };
 
   // API Routes
   app.post("/api/newsletter/send", async (req, res) => {
+    console.log("Newsletter send request received", {
+      subject: req.body.subject,
+      recipientCount: req.body.recipients?.length
+    });
+
     const { subject, body, recipients } = req.body;
 
-    if (!subject || !body || !recipients || !Array.isArray(recipients)) {
-      return res.status(400).json({ error: "Missing required fields" });
+    if (!subject || !body || !recipients || !Array.isArray(recipients) || recipients.length === 0) {
+      return res.status(400).json({ error: "Missing required fields or recipients list is empty" });
     }
 
     try {
@@ -41,29 +48,24 @@ async function startServer() {
       const rawFromEmail = process.env.MAILGUN_FROM_EMAIL || `updates@${domain}`;
       const replyTo = process.env.MAILGUN_REPLY_TO || "growlocalcreative@gmail.com";
 
-      // Force the display name to "ALT Business Connections" for professional appearance
-      // This fixes the issue where only 'renee' was appearing in the from column
-      const fromEmail = rawFromEmail.includes("<") 
-        ? rawFromEmail.replace(/^[^<]+/, "ALT Business Connections ")
-        : `ALT Business Connections <${rawFromEmail}>`;
-
       if (!domain) {
         throw new Error("MAILGUN_DOMAIN is not configured");
       }
 
       const mg = getMailgun();
       
-      // Use Mailgun Batch Sending for better deliverability
       const recipientVariables: Record<string, any> = {};
       recipients.forEach(email => {
         recipientVariables[email] = { id: email };
       });
 
-      await mg.messages.create(domain, {
-        from: fromEmail,
+      console.log(`Attempting to send batch email to ${recipients.length} recipients via ${domain}`);
+
+      const result = await mg.messages.create(domain, {
+        from: `ALT Business Connections <${rawFromEmail.includes('<') ? rawFromEmail.split('<')[1].split('>')[0] : rawFromEmail}>`,
         to: recipients,
-        'h:Reply-To': replyTo, // Critical for "Trust"
-        'o:tracking': 'yes', // Enable open/click tracking
+        'h:Reply-To': replyTo,
+        'o:tracking': 'yes',
         'o:tracking-clicks': 'yes',
         'o:tracking-opens': 'yes',
         'recipient-variables': JSON.stringify(recipientVariables),
@@ -121,10 +123,18 @@ async function startServer() {
         `
       });
 
-      res.json({ success: true });
+      console.log("Mailgun send result:", result);
+      res.json({ success: true, messageId: result.id });
     } catch (error: any) {
-      console.error("Mailgun Error:", error);
-      res.status(500).json({ error: error.message || "Failed to send newsletter" });
+      console.error("Mailgun Sending Error:", {
+        message: error.message,
+        details: error.details,
+        status: error.status
+      });
+      res.status(error.status || 500).json({ 
+        error: error.message || "Failed to send newsletter",
+        details: error.details || undefined
+      });
     }
   });
 
