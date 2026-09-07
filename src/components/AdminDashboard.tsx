@@ -661,7 +661,10 @@ export const NewsletterPanel: React.FC<{
     setStatus(null);
 
     try {
-      const response = await fetch("/api/newsletter/send", {
+      const apiUrl = `${window.location.origin}/newsletter-v1/send`;
+      console.log("Sending newsletter to:", apiUrl);
+      
+      const response = await fetch(apiUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -715,14 +718,35 @@ export const NewsletterPanel: React.FC<{
         isSending={isSending}
       />
 
-      <div className="flex items-center gap-3 mb-8">
-        <div className="p-3 bg-[#d4af37]/10 rounded-xl">
-          <Mail className="w-6 h-6 text-[#d4af37]" />
+      <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center gap-3">
+          <div className="p-3 bg-[#d4af37]/10 rounded-xl">
+            <Mail className="w-6 h-6 text-[#d4af37]" />
+          </div>
+          <div>
+            <h2 className="text-2xl font-bold text-[#1a3a3a]">Blast Newsletter</h2>
+            <p className="text-slate-500">Send an update to your {allRecipients.length} members & neighbors.</p>
+          </div>
         </div>
-        <div>
-          <h2 className="text-2xl font-bold text-[#1a3a3a]">Blast Newsletter</h2>
-          <p className="text-slate-500">Send an update to your {allRecipients.length} members & neighbors.</p>
-        </div>
+        <button 
+          onClick={async () => {
+            try {
+              const testPaths = ['/api/health', '/newsletter-v1/send'];
+              let results = [];
+              for (const path of testPaths) {
+                const res = await fetch(`${window.location.origin}${path}`);
+                const version = res.headers.get('X-Server-Version') || 'Unknown';
+                results.push(`${path}: ${res.status} [v:${version}]`);
+              }
+              alert(`API Connection Test:\n${results.join('\n')}\nOrigin: ${window.location.origin}`);
+            } catch (e: any) {
+              alert(`API Connection Failed: ${e.message}`);
+            }
+          }}
+          className="text-[10px] uppercase tracking-widest font-bold text-slate-400 hover:text-[#d4af37] transition-colors"
+        >
+          Test API Connection
+        </button>
       </div>
 
       <div className="space-y-6">

@@ -22,6 +22,9 @@ async function startServer() {
   app.use(cors());
   app.use(express.json({ limit: '10mb' }));
 
+  // Explicit OPTIONS handler for all routes to help with preflights
+  app.options('*', cors());
+
   // Mailgun Client Lazy Initialization
   let mgClient: any = null;
   const getMailgun = () => {
@@ -48,7 +51,7 @@ async function startServer() {
     });
   });
 
-  app.route(["/api/newsletter/send", "/api/newsletter/send/"])
+  app.route(["/api/newsletter/send", "/api/newsletter/send/", "/newsletter-v1/send"])
     .get((req, res) => {
       res.json({ message: "Newsletter API is active. Please use POST to send." });
     })
@@ -173,7 +176,10 @@ async function startServer() {
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
-      server: { middlewareMode: true },
+      server: { 
+        middlewareMode: true,
+        hmr: process.env.DISABLE_HMR !== 'true'
+      },
       appType: "spa",
     });
     app.use(vite.middlewares);
