@@ -155,7 +155,7 @@ export default {
           replyTo: env.MAILGUN_REPLY_TO || "growlocalcreative@gmail.com"
         },
         envKeys: Object.keys(env).filter(k => k !== 'ASSETS'),
-        version: '1.1.1-worker'
+        version: '1.1.2-worker'
       };
       
       return new Response(JSON.stringify(config), {

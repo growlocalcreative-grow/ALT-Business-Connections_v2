@@ -9,6 +9,11 @@
     "not_found_handling": "single-page-application",
     "run_worker_first": ["/api/*"]
   },
+  "vars": {
+    "MAILGUN_DOMAIN": "newsletter.altbusinessconnections.org",
+    "MAILGUN_FROM_EMAIL": "updates@newsletter.altbusinessconnections.org",
+    "MAILGUN_REPLY_TO": "growlocalcreative@gmail.com"
+  },
   "observability": {
     "enabled": true
   }
