@@ -25,7 +25,7 @@ export default {
       }
 
       try {
-        const { subject, body, recipients } = await request.json();
+        const { subject, body, recipients, customization } = await request.json();
 
         if (!subject || !body || !recipients || !Array.isArray(recipients) || recipients.length === 0) {
           return new Response(JSON.stringify({ error: "Missing required fields" }), {
@@ -36,7 +36,6 @@ export default {
 
         const domain = env.MAILGUN_DOMAIN || "newsletter.altbusinessconnections.org";
         const rawFromEmail = env.MAILGUN_FROM_EMAIL || `updates@${domain}`;
-        const replyTo = env.MAILGUN_REPLY_TO || "growlocalcreative@gmail.com";
         const apiKey = env.MAILGUN_API_KEY;
 
         if (!apiKey) {
@@ -46,7 +45,18 @@ export default {
           });
         }
 
-        const fromName = "ALT Business Connections";
+        // Branding & Customization
+        const bannerColor = customization?.bannerColor || "#1a3a3a";
+        const bannerTextColor = customization?.bannerTextColor || "#d4af37";
+        const orgName = customization?.organizationName || "ALT Business Connections";
+        const footerAddress = customization?.address || "Auburn Lake Trails • Cool, California";
+        const footerWebsite = customization?.website || "https://www.altbusinessconnections.org";
+        const footerPhone = customization?.phone || "";
+        const footerEmail = customization?.contactEmail || "";
+        const replyTo = customization?.replyTo || env.MAILGUN_REPLY_TO || "growlocalcreative@gmail.com";
+        const footerText = customization?.footerText || "You are receiving this because you are part of our local community network.";
+
+        const fromName = orgName;
         const fromEmail = rawFromEmail.includes('<') ? rawFromEmail.split('<')[1].split('>')[0] : rawFromEmail;
         const fromHeader = `${fromName} <${fromEmail}>`;
 
@@ -58,7 +68,7 @@ export default {
               <style>
                 .content-box { line-height: 1.6; color: #334155; }
                 .footer { color: #94a3b8; font-size: 12px; margin-top: 40px; border-top: 1px solid #f1f5f9; padding-top: 20px; }
-                .footer a { color: #d4af37; text-decoration: none; }
+                .footer a { color: ${bannerTextColor}; text-decoration: none; }
               </style>
             </head>
             <body style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background-color: #f8fafc; padding: 40px 0; margin: 0;">
@@ -68,8 +78,8 @@ export default {
                     <table width="600" border="0" cellspacing="0" cellpadding="0" style="background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
                       <!-- Header -->
                       <tr>
-                        <td style="background-color: #1a3a3a; padding: 30px; text-align: center;">
-                          <h1 style="color: #d4af37; margin: 0; font-size: 20px; text-transform: uppercase; letter-spacing: 2px;">ALT Business Connections</h1>
+                        <td style="background-color: ${bannerColor}; padding: 30px; text-align: center;">
+                          <h1 style="color: ${bannerTextColor}; margin: 0; font-size: 20px; text-transform: uppercase; letter-spacing: 2px;">${orgName}</h1>
                         </td>
                       </tr>
                       
@@ -82,11 +92,13 @@ export default {
                           
                           <!-- Compliance Footer -->
                           <div class="footer">
-                            <p style="margin: 0 0 10px 0;"><strong>ALT Business Connections</strong></p>
-                            <p style="margin: 0 0 5px 0;">Auburn Lake Trails • Cool, California</p>
-                            <p style="margin: 0 0 20px 0;"><a href="https://www.altbusinessconnections.org">www.altbusinessconnections.org</a></p>
+                            <p style="margin: 0 0 10px 0;"><strong>${orgName}</strong></p>
+                            <p style="margin: 0 0 5px 0;">${footerAddress}</p>
+                            <p style="margin: 0 0 5px 0;">${footerPhone ? `Phone: ${footerPhone}` : ""}</p>
+                            <p style="margin: 0 0 5px 0;">${footerEmail ? `Email: <a href="mailto:${footerEmail}">${footerEmail}</a>` : ""}</p>
+                            <p style="margin: 0 0 20px 0;"><a href="${footerWebsite}">${footerWebsite.replace('https://', '').replace('http://', '')}</a></p>
                             <p style="margin: 0; font-style: italic;">
-                              You are receiving this because you are part of our local community network.
+                              ${footerText}
                               <br>
                               <a href="mailto:${replyTo}?subject=Unsubscribe">Unsubscribe from this list</a>
                             </p>
@@ -116,7 +128,7 @@ export default {
               to: toField,
               subject: subject,
               html: htmlTemplate,
-              text: `${body}\n\n---\nALT Business Connections\nwww.altbusinessconnections.org\nAuburn Lake Trails, CA\nTo unsubscribe, please reply to this email with "Unsubscribe".`,
+              text: `${body}\n\n---\n${orgName}\n${footerWebsite}\n${footerAddress}${footerPhone ? `\nPhone: ${footerPhone}` : ""}${footerEmail ? `\nEmail: ${footerEmail}` : ""}\nTo unsubscribe, please reply to this email with "Unsubscribe".`,
               'h:Reply-To': replyTo,
               'o:tracking': 'yes',
               'o:tracking-clicks': 'yes',

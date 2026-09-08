@@ -113,9 +113,27 @@
         "createdAt": { "type": "string", "format": "date-time" },
         "sentAt": { "type": "string", "format": "date-time" },
         "error": { "type": "string" },
-        "createdBy": { "type": "string" }
+        "createdBy": { "type": "string" },
+        "recipientCount": { "type": "number" },
+        "messageId": { "type": "string" }
       },
       "required": ["subject", "body", "recipients", "status", "createdAt"]
+    },
+    "NewsletterSettings": {
+      "type": "object",
+      "properties": {
+        "bannerColor": { "type": "string" },
+        "bannerTextColor": { "type": "string" },
+        "organizationName": { "type": "string" },
+        "address": { "type": "string" },
+        "phone": { "type": "string" },
+        "contactEmail": { "type": "string" },
+        "website": { "type": "string" },
+        "replyTo": { "type": "string" },
+        "footerText": { "type": "string" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["bannerColor", "bannerTextColor", "organizationName", "updatedAt"]
     }
   },
   "firestore": {
@@ -146,6 +164,10 @@
     "newsletter_queue/{newsletterId}": {
       "schema": "NewsletterRequest",
       "description": "Queue for background newsletter processing."
+    },
+    "settings/newsletter": {
+      "schema": "NewsletterSettings",
+      "description": "Branding and design settings for the newsletter."
     }
   }
 }

@@ -83,3 +83,16 @@ export interface SiteSettings {
   testimonialsSubtitle: string;
   updatedAt: string;
 }
+
+export interface NewsletterSettings {
+  bannerColor: string;
+  bannerTextColor: string;
+  organizationName: string;
+  address: string;
+  phone: string;
+  contactEmail: string;
+  website: string;
+  replyTo: string;
+  footerText: string;
+  updatedAt: string;
+}

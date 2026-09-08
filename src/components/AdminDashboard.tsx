@@ -60,7 +60,7 @@ import {
 } from "lucide-react";
 import { cn } from "../lib/utils";
 import { Button, Card, Section } from "./UI";
-import { Business, MembershipApplication, SiteSettings, Testimonial, AppEvent } from "../types";
+import { Business, MembershipApplication, SiteSettings, Testimonial, AppEvent, NewsletterSettings } from "../types";
 import { AnimatePresence, motion } from "motion/react";
 
 interface EditModalProps {
@@ -590,13 +590,28 @@ const RecipientModal: React.FC<{
 export const NewsletterPanel: React.FC<{ 
   businesses: Business[], 
   memberships: MembershipApplication[],
-  isLoading?: boolean
-}> = ({ businesses, memberships, isLoading = false }) => {
+  isLoading?: boolean,
+  settings: NewsletterSettings | null,
+  onSaveSettings: (data: Partial<NewsletterSettings>) => Promise<void>
+}> = ({ businesses, memberships, isLoading = false, settings, onSaveSettings }) => {
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [status, setStatus] = useState<{ type: 'success' | 'error', message: string } | null>(null);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [editingSettings, setEditingSettings] = useState<Partial<NewsletterSettings>>(settings || {});
+
+  useEffect(() => {
+    if (settings) {
+      setEditingSettings(settings);
+    }
+  }, [settings]);
+
+  const handleSaveSettings = async () => {
+    await onSaveSettings(editingSettings);
+    setIsSettingsOpen(false);
+  };
 
   // Extract unique recipients with metadata
   const recipientMap = new Map<string, { email: string; name: string; source: string }>();
@@ -677,6 +692,17 @@ export const NewsletterPanel: React.FC<{
           subject,
           body,
           recipients: Array.from(selectedEmails),
+          customization: settings ? {
+            bannerColor: settings.bannerColor,
+            bannerTextColor: settings.bannerTextColor,
+            organizationName: settings.organizationName,
+            address: settings.address,
+            phone: settings.phone,
+            contactEmail: settings.contactEmail,
+            website: settings.website,
+            replyTo: settings.replyTo,
+            footerText: settings.footerText
+          } : undefined
         }),
       });
 
@@ -702,7 +728,12 @@ export const NewsletterPanel: React.FC<{
             messageId: data.messageId
           });
         } catch (e) {
-          console.warn("Failed to save history log, but email was sent:", e);
+          console.warn("Failed to save history log, but email was sent.");
+          try {
+            handleFirestoreError(e, OperationType.CREATE, "newsletter_queue");
+          } catch (loggingError) {
+            // Keep original behavior of just warning, but now with better console output
+          }
         }
 
         setStatus({ type: 'success', message: "Newsletter sent successfully!" });
@@ -738,15 +769,168 @@ export const NewsletterPanel: React.FC<{
         isSending={isSending}
       />
 
-        <div className="flex items-center gap-3">
-          <div className="p-3 bg-[#d4af37]/10 rounded-xl">
-            <Mail className="w-6 h-6 text-[#d4af37]" />
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="p-3 bg-[#d4af37]/10 rounded-xl">
+              <Mail className="w-6 h-6 text-[#d4af37]" />
+            </div>
+            <div>
+              <h2 className="text-2xl font-bold text-[#1a3a3a]">Blast Newsletter</h2>
+              <p className="text-slate-500">Send an update to your {allRecipients.length} members & neighbors.</p>
+            </div>
           </div>
-          <div>
-            <h2 className="text-2xl font-bold text-[#1a3a3a]">Blast Newsletter</h2>
-            <p className="text-slate-500">Send an update to your {allRecipients.length} members & neighbors.</p>
-          </div>
+          <button 
+            onClick={() => setIsSettingsOpen(!isSettingsOpen)}
+            className="flex items-center gap-2 px-4 py-2 bg-slate-50 text-[#1a3a3a] rounded-xl text-sm font-bold border border-slate-200 hover:bg-slate-100 transition-all"
+          >
+            <Settings className="w-4 h-4" />
+            Newsletter Branding
+          </button>
         </div>
+
+      <AnimatePresence>
+        {isSettingsOpen && (
+          <motion.div 
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="overflow-hidden"
+          >
+            <div className="p-6 bg-slate-50 rounded-2xl border border-slate-200 space-y-6 mt-4">
+              <div className="flex items-center justify-between">
+                <h3 className="font-bold text-[#1a3a3a]">Design & Footer Settings</h3>
+                <p className="text-xs text-slate-400 italic">Changes here update your default newsletter look.</p>
+              </div>
+
+              <div className="grid md:grid-cols-2 gap-6">
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block">Header Banner Color</label>
+                    <div className="flex gap-3">
+                      <input 
+                        type="color" 
+                        value={editingSettings.bannerColor || "#1a3a3a"} 
+                        onChange={(e) => setEditingSettings({ ...editingSettings, bannerColor: e.target.value })}
+                        className="w-10 h-10 rounded-lg cursor-pointer border-none bg-transparent"
+                      />
+                      <input 
+                        type="text" 
+                        value={editingSettings.bannerColor || ""} 
+                        onChange={(e) => setEditingSettings({ ...editingSettings, bannerColor: e.target.value })}
+                        className="flex-1 px-3 py-2 text-sm rounded-lg border border-slate-200 uppercase font-mono"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block">Header Text Color</label>
+                    <div className="flex gap-3">
+                      <input 
+                        type="color" 
+                        value={editingSettings.bannerTextColor || "#d4af37"} 
+                        onChange={(e) => setEditingSettings({ ...editingSettings, bannerTextColor: e.target.value })}
+                        className="w-10 h-10 rounded-lg cursor-pointer border-none bg-transparent"
+                      />
+                      <input 
+                        type="text" 
+                        value={editingSettings.bannerTextColor || ""} 
+                        onChange={(e) => setEditingSettings({ ...editingSettings, bannerTextColor: e.target.value })}
+                        className="flex-1 px-3 py-2 text-sm rounded-lg border border-slate-200 uppercase font-mono"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="p-4 bg-white rounded-xl border border-slate-200">
+                    <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Live Preview</div>
+                    <div className="space-y-4">
+                      {/* Header Preview */}
+                      <div 
+                        className="h-12 rounded-lg flex items-center justify-center font-bold text-sm tracking-widest uppercase"
+                        style={{ backgroundColor: editingSettings.bannerColor, color: editingSettings.bannerTextColor }}
+                      >
+                        {editingSettings.organizationName || "ALT Business Connections"}
+                      </div>
+
+                      {/* Footer Preview */}
+                      <div className="pt-4 border-t border-slate-100 text-center space-y-1">
+                        <p className="text-[11px] font-bold text-slate-700">{editingSettings.organizationName}</p>
+                        <p className="text-[10px] text-slate-400">{editingSettings.address}</p>
+                        <div className="flex flex-wrap justify-center gap-x-3 text-[10px] text-[#d4af37]">
+                          {editingSettings.phone && <span>{editingSettings.phone}</span>}
+                          {editingSettings.contactEmail && <span>{editingSettings.contactEmail}</span>}
+                          <span>{editingSettings.website?.replace('https://', '').replace('http://', '')}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block">Organization Name</label>
+                    <input 
+                      type="text" 
+                      value={editingSettings.organizationName || ""} 
+                      onChange={(e) => setEditingSettings({ ...editingSettings, organizationName: e.target.value })}
+                      className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block">Office Address</label>
+                    <input 
+                      type="text" 
+                      value={editingSettings.address || ""} 
+                      onChange={(e) => setEditingSettings({ ...editingSettings, address: e.target.value })}
+                      className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block">Website URL</label>
+                    <input 
+                      type="text" 
+                      value={editingSettings.website || ""} 
+                      onChange={(e) => setEditingSettings({ ...editingSettings, website: e.target.value })}
+                      className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block">Contact Phone</label>
+                    <input 
+                      type="text" 
+                      value={editingSettings.phone || ""} 
+                      onChange={(e) => setEditingSettings({ ...editingSettings, phone: e.target.value })}
+                      className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block">Contact Email</label>
+                    <input 
+                      type="email" 
+                      value={editingSettings.contactEmail || ""} 
+                      onChange={(e) => setEditingSettings({ ...editingSettings, contactEmail: e.target.value })}
+                      className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block">Compliance Footer Text</label>
+                    <textarea 
+                      value={editingSettings.footerText || ""} 
+                      onChange={(e) => setEditingSettings({ ...editingSettings, footerText: e.target.value })}
+                      rows={2}
+                      className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 resize-none"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4 border-t border-slate-200">
+                <Button variant="outline" onClick={() => setIsSettingsOpen(false)}>Cancel</Button>
+                <Button onClick={handleSaveSettings}>Save Branding Settings</Button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <div className="space-y-6">
         <div className="space-y-2">
@@ -824,6 +1008,7 @@ export const AdminDashboard: React.FC = () => {
   const [siteSettings, setSiteSettings] = useState<SiteSettings | null>(null);
   const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
   const [events, setEvents] = useState<AppEvent[]>([]);
+  const [newsletterSettings, setNewsletterSettings] = useState<NewsletterSettings | null>(null);
 
   // Modal State
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -970,12 +1155,32 @@ export const AdminDashboard: React.FC = () => {
       (error) => handleFirestoreError(error, OperationType.LIST, "events")
     );
 
+    const unsubNewsletterSettings = onSnapshot(
+      doc(db, "settings", "newsletter"),
+      (snapshot) => {
+        setNewsletterSettings(snapshot.data() as NewsletterSettings || {
+          bannerColor: "#1a3a3a",
+          bannerTextColor: "#d4af37",
+          organizationName: "ALT Business Connections",
+          address: "Auburn Lake Trails • Cool, California",
+          phone: "530-000-0000",
+          contactEmail: "growlocalcreative@gmail.com",
+          website: "https://www.altbusinessconnections.org",
+          replyTo: "growlocalcreative@gmail.com",
+          footerText: "You are receiving this because you are part of our local community network.",
+          updatedAt: new Date().toISOString()
+        });
+      },
+      (error) => handleFirestoreError(error, OperationType.GET, "settings/newsletter")
+    );
+
     return () => {
       unsubBusinesses();
       unsubMemberships();
       unsubSettings();
       unsubTestimonials();
       unsubEvents();
+      unsubNewsletterSettings();
     };
   }, [isAdmin, user]);
 
@@ -2059,6 +2264,19 @@ export const AdminDashboard: React.FC = () => {
               businesses={businesses} 
               memberships={memberships} 
               isLoading={isLoading}
+              settings={newsletterSettings}
+              onSaveSettings={async (data) => {
+                try {
+                  await setDoc(doc(db, "settings", "newsletter"), {
+                    ...data,
+                    updatedAt: serverTimestamp()
+                  });
+                  setStatus({ type: 'success', message: "Branding settings saved successfully!" });
+                } catch (e) {
+                  console.error("Failed to save settings:", e);
+                  handleFirestoreError(e, OperationType.UPDATE, "settings/newsletter");
+                }
+              }}
             />
           )}
         </div>
