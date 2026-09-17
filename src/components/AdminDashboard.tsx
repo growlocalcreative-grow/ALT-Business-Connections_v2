@@ -1286,15 +1286,30 @@ export const AdminDashboard: React.FC = () => {
   const saveBusiness = async (data: Partial<Business>) => {
     try {
       if (isApproving && approvingId) {
-        // Create new business
-        const newBizRef = doc(collection(db, "businesses"));
-        await setDoc(newBizRef, {
-          ...data,
-          timestamp: new Date().toISOString()
-        });
+        // Check if this business already exists in the directory (by email)
+        const existingBiz = businesses.find(b => b.email.toLowerCase() === data.email?.toLowerCase());
+        
+        if (existingBiz) {
+          // Update the existing business record instead of creating a new one
+          await updateDoc(doc(db, "businesses", existingBiz.id), {
+            ...data,
+            isABCClubMember: true, // It is now approved
+            updatedAt: new Date().toISOString()
+          });
+          showMessage("Success", "Application approved and existing listing updated!");
+        } else {
+          // Create a new business record
+          const newBizRef = doc(collection(db, "businesses"));
+          await setDoc(newBizRef, {
+            ...data,
+            isABCClubMember: true,
+            timestamp: new Date().toISOString()
+          });
+          showMessage("Success", "Application approved and business listed!");
+        }
+        
         // Delete membership application
         await deleteDoc(doc(db, "memberships", approvingId));
-        showMessage("Success", "Application approved and business listed!");
       } else if (editingBusiness?.id) {
         // Update existing business
         await updateDoc(doc(db, "businesses", editingBusiness.id), data);
@@ -2271,7 +2286,7 @@ export const AdminDashboard: React.FC = () => {
                     ...data,
                     updatedAt: serverTimestamp()
                   });
-                  setStatus({ type: 'success', message: "Branding settings saved successfully!" });
+                  showMessage("Success", "Branding settings saved successfully!");
                 } catch (e) {
                   console.error("Failed to save settings:", e);
                   handleFirestoreError(e, OperationType.UPDATE, "settings/newsletter");

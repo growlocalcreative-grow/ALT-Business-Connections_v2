@@ -59,10 +59,20 @@ async function startServer() {
     return mgClient;
   };
 
-  const sendEmail = async (subject: string, body: string, recipients: string[]) => {
+  const sendEmail = async (subject: string, body: string, recipients: string[], customization?: any) => {
     const domain = process.env.MAILGUN_DOMAIN || "newsletter.altbusinessconnections.org";
     const rawFromEmail = process.env.MAILGUN_FROM_EMAIL || `updates@${domain}`;
-    const replyTo = process.env.MAILGUN_REPLY_TO || "growlocalcreative@gmail.com";
+    
+    // Branding & Customization
+    const bannerColor = customization?.bannerColor || "#1a3a3a";
+    const bannerTextColor = customization?.bannerTextColor || "#d4af37";
+    const orgName = customization?.organizationName || "ALT Business Connections";
+    const footerAddress = customization?.address || "Auburn Lake Trails • Cool, California";
+    const footerWebsite = customization?.website || "https://www.altbusinessconnections.org";
+    const footerPhone = customization?.phone || "";
+    const footerEmail = customization?.contactEmail || "";
+    const replyTo = customization?.replyTo || process.env.MAILGUN_REPLY_TO || "growlocalcreative@gmail.com";
+    const footerText = customization?.footerText || "You are receiving this because you are part of our local community network.";
 
     const mg = getMailgun();
     if (!mg) throw new Error("Mailgun not configured");
@@ -73,7 +83,7 @@ async function startServer() {
     });
 
     return mg.messages.create(domain, {
-      from: `ALT Business Connections <${rawFromEmail.includes('<') ? rawFromEmail.split('<')[1].split('>')[0] : rawFromEmail}>`,
+      from: `${orgName} <${rawFromEmail.includes('<') ? rawFromEmail.split('<')[1].split('>')[0] : rawFromEmail}>`,
       to: recipients,
       'h:Reply-To': replyTo,
       'o:tracking': 'yes',
@@ -81,7 +91,7 @@ async function startServer() {
       'o:tracking-opens': 'yes',
       'recipient-variables': JSON.stringify(recipientVariables),
       subject: subject,
-      text: `${body}\n\n---\nALT Business Connections\nwww.altbusinessconnections.org\nAuburn Lake Trails, CA\nTo unsubscribe, please reply to this email with "Unsubscribe".`,
+      text: `${body}\n\n---\n${orgName}\n${footerWebsite}\n${footerAddress}${footerPhone ? `\nPhone: ${footerPhone}` : ""}${footerEmail ? `\nEmail: ${footerEmail}` : ""}\nTo unsubscribe, please reply to this email with "Unsubscribe".`,
       html: `
         <!DOCTYPE html>
         <html>
@@ -90,7 +100,7 @@ async function startServer() {
             <style>
               .content-box { line-height: 1.6; color: #334155; }
               .footer { color: #94a3b8; font-size: 12px; margin-top: 40px; border-top: 1px solid #f1f5f9; padding-top: 20px; }
-              .footer a { color: #d4af37; text-decoration: none; }
+              .footer a { color: ${bannerTextColor}; text-decoration: none; }
             </style>
           </head>
           <body style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background-color: #f8fafc; padding: 40px 0; margin: 0;">
@@ -100,8 +110,8 @@ async function startServer() {
                   <table width="600" border="0" cellspacing="0" cellpadding="0" style="background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
                     <!-- Header -->
                     <tr>
-                      <td style="background-color: #1a3a3a; padding: 30px; text-align: center;">
-                        <h1 style="color: #d4af37; margin: 0; font-size: 20px; text-transform: uppercase; letter-spacing: 2px;">ALT Business Connections</h1>
+                      <td style="background-color: ${bannerColor}; padding: 30px; text-align: center;">
+                        <h1 style="color: ${bannerTextColor}; margin: 0; font-size: 20px; text-transform: uppercase; letter-spacing: 2px;">${orgName}</h1>
                       </td>
                     </tr>
                     
@@ -114,11 +124,13 @@ async function startServer() {
                         
                         <!-- Compliance Footer -->
                         <div class="footer">
-                          <p style="margin: 0 0 10px 0;"><strong>ALT Business Connections</strong></p>
-                          <p style="margin: 0 0 5px 0;">Auburn Lake Trails • Cool, California</p>
-                          <p style="margin: 0 0 20px 0;"><a href="https://www.altbusinessconnections.org">www.altbusinessconnections.org</a></p>
+                          <p style="margin: 0 0 10px 0;"><strong>${orgName}</strong></p>
+                          <p style="margin: 0 0 5px 0;">${footerAddress}</p>
+                          <p style="margin: 0 0 5px 0;">${footerPhone ? `Phone: ${footerPhone}` : ""}</p>
+                          <p style="margin: 0 0 5px 0;">${footerEmail ? `Email: <a href="mailto:${footerEmail}">${footerEmail}</a>` : ""}</p>
+                          <p style="margin: 0 0 20px 0;"><a href="${footerWebsite}">${footerWebsite.replace('https://', '').replace('http://', '')}</a></p>
                           <p style="margin: 0; font-style: italic;">
-                            You are receiving this because you are part of our local community network.
+                            ${footerText}
                             <br>
                             <a href="mailto:${replyTo}?subject=Unsubscribe">Unsubscribe from this list</a>
                           </p>
@@ -151,7 +163,7 @@ async function startServer() {
       recipients: req.body.recipients
     });
 
-    const { subject, body, recipients } = req.body;
+    const { subject, body, recipients, customization } = req.body;
 
     if (!subject || !body || !recipients || !Array.isArray(recipients) || recipients.length === 0) {
       console.warn("Newsletter send failed: Missing required fields");
@@ -160,7 +172,7 @@ async function startServer() {
 
     try {
       console.log("Attempting to send email via Mailgun...");
-      const result = await sendEmail(subject, body, recipients);
+      const result = await sendEmail(subject, body, recipients, customization);
       console.log("Mailgun API accepted the request. Result:", result);
       res.json({ success: true, messageId: result.id });
     } catch (error: any) {

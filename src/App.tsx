@@ -15,17 +15,29 @@ import { OfflineIndicator } from "./components/OfflineIndicator";
 import { AdminDashboard } from "./components/AdminDashboard";
 import { PrivacyPolicy } from "./components/PrivacyPolicy";
 import { TermsOfService } from "./components/TermsOfService";
+import { MobileThumbNav } from "./components/MobileThumbNav";
 import { Button, Card, Section } from "./components/UI";
 import { cn } from "./lib/utils";
 import { doc, onSnapshot } from "firebase/firestore";
 import { db } from "./lib/firebase";
 
 const ScrollToTop = () => {
-  const { pathname } = useLocation();
+  const { pathname, hash } = useLocation();
   
   useEffect(() => {
+    if (hash) {
+      const id = hash.replace('#', '');
+      const element = document.getElementById(id);
+      if (element) {
+        // Small delay to ensure the component is mounted and rendered
+        setTimeout(() => {
+          element.scrollIntoView({ behavior: 'smooth' });
+        }, 100);
+        return;
+      }
+    }
     window.scrollTo(0, 0);
-  }, [pathname]);
+  }, [pathname, hash]);
   
   return null;
 };
@@ -57,7 +69,7 @@ const Navigation = ({ onJoinClick }: { onJoinClick: () => void }) => {
   return (
     <motion.nav
       style={{ backgroundColor: headerBg, borderBottom: `1px solid ${headerBorder}` }}
-      className="fixed top-0 left-0 right-0 z-50 px-6 py-4 transition-all"
+      className="px-6 py-4 transition-all"
     >
       <div className="max-w-7xl mx-auto flex items-center justify-between">
         <Link to="/" className="flex items-center gap-2">
@@ -67,31 +79,21 @@ const Navigation = ({ onJoinClick }: { onJoinClick: () => void }) => {
           </span>
         </Link>
 
-        {/* Desktop Nav */}
         <div className="hidden md:flex items-center gap-8">
           {navLinks.map((link) => (
-            link.href.startsWith("/#") ? (
-              <a
-                key={link.name}
-                href={link.href}
-                className="text-sm font-bold text-[#1a3a3a]/70 hover:text-[#1a3a3a] transition-colors uppercase tracking-widest flex items-center gap-2"
-              >
-                {link.icon && <link.icon className="w-4 h-4" />}
-                {link.name}
-              </a>
-            ) : (
-              <Link
-                key={link.name}
-                to={link.href}
-                className={cn(
-                  "text-sm font-bold uppercase tracking-widest flex items-center gap-2 transition-colors",
-                  location.pathname === link.href ? "text-[#d4af37]" : "text-[#1a3a3a]/70 hover:text-[#1a3a3a]"
-                )}
-              >
-                {link.icon && <link.icon className="w-4 h-4" />}
-                {link.name}
-              </Link>
-            )
+            <Link
+              key={link.name}
+              to={link.href}
+              className={cn(
+                "text-sm font-bold uppercase tracking-widest flex items-center gap-2 transition-colors",
+                (location.pathname === link.href || (link.href.startsWith("/#") && location.pathname === "/" && location.hash === "#" + link.href.split("#")[1])) 
+                  ? "text-[#d4af37]" 
+                  : "text-[#1a3a3a]/70 hover:text-[#1a3a3a]"
+              )}
+            >
+              {link.icon && <link.icon className="w-4 h-4" />}
+              {link.name}
+            </Link>
           ))}
           <PWAInstallButton />
           <Button variant="primary" className="text-sm py-2 px-6" onClick={onJoinClick}>
@@ -391,9 +393,12 @@ export default function App() {
   return (
     <BrowserRouter>
       <ScrollToTop />
-      <div className="min-h-screen bg-[#fbfaf8] text-slate-800 font-sans selection:bg-[#d4af37]/30">
-        <AnnouncementBanner text={settings?.announcement} />
-        <Navigation onJoinClick={() => setIsModalOpen(true)} />
+      <div className="min-h-screen bg-[#fbfaf8] text-slate-800 font-sans selection:bg-[#d4af37]/30 pb-20 md:pb-0">
+        <header className="fixed top-0 left-0 right-0 z-50">
+          <AnnouncementBanner text={settings?.announcement} />
+          <Navigation onJoinClick={() => setIsModalOpen(true)} />
+        </header>
+        <MobileThumbNav onJoinClick={() => setIsModalOpen(true)} />
         
         <Routes>
           <Route path="/" element={<HomePage onJoinClick={() => setIsModalOpen(true)} settings={settings} />} />

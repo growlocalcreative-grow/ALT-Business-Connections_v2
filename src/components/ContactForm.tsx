@@ -128,7 +128,7 @@ export const ContactForm = ({
             email: data.email,
             phone: data.phone,
             isTextEnabled: data.isTextEnabled,
-            isABCClubMember: data.joinClub,
+            isABCClubMember: false, // Wait for admin approval to grant club status
             website: formattedWebsite,
             logo: data.logo || "",
             timestamp: new Date().toISOString(),
@@ -174,11 +174,11 @@ export const ContactForm = ({
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       onSubmit={handleSubmit(onSubmit)}
-      className="space-y-6"
+      className="space-y-4 sm:space-y-6"
     >
       <div className="space-y-2">
         <label className="text-xs font-bold text-[#1a3a3a] uppercase tracking-wider block">Business Logo</label>
-        <div className="flex items-center gap-6 p-4 bg-white rounded-xl border border-dashed border-slate-200">
+        <div className="flex items-center gap-4 sm:gap-6 p-4 bg-white rounded-xl border border-dashed border-slate-200">
           <div className="relative w-20 h-20 bg-slate-50 rounded-xl border border-slate-100 overflow-hidden flex items-center justify-center flex-shrink-0">
             {logoPreview ? (
               <>
@@ -195,23 +195,28 @@ export const ContactForm = ({
               <ImageIcon className="w-8 h-8 text-slate-200" />
             )}
           </div>
-          <div className="flex-1 space-y-1">
-            <p className="text-xs text-slate-500 font-medium">Add your brand's face to the directory (max 1MB)</p>
-            <div className="relative">
-              <input
-                type="file"
-                accept="image/*"
-                onChange={handleLogoUpload}
-                className="hidden"
-                id="logo-upload"
-              />
-              <label
-                htmlFor="logo-upload"
-                className="inline-flex items-center gap-2 px-4 py-2 bg-slate-50 text-[#1a3a3a] rounded-lg text-xs font-bold border border-slate-200 cursor-pointer hover:bg-slate-100 transition-all"
-              >
-                <Upload className="w-3.5 h-3.5" />
-                {logoPreview ? "Change Logo" : "Upload Logo"}
-              </label>
+          <div className="flex-1 min-w-0">
+            <p className="text-xs text-slate-600 leading-snug mb-3">Add your brand's face to the directory</p>
+            <div className="flex items-center gap-3">
+              <div className="relative">
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleLogoUpload}
+                  className="hidden"
+                  id="logo-upload"
+                />
+                <label
+                  htmlFor="logo-upload"
+                  className="inline-flex items-center justify-center p-2.5 bg-slate-50 text-[#1a3a3a] rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-100 transition-all shadow-sm group"
+                  title={logoPreview ? "Change Logo" : "Upload Logo"}
+                >
+                  <Upload className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                </label>
+              </div>
+              {logoPreview && (
+                <span className="text-[10px] font-bold text-[#1a3a3a] uppercase tracking-wider">Change Logo</span>
+              )}
             </div>
           </div>
         </div>
@@ -360,7 +365,7 @@ export const ContactForm = ({
         </div>
       )}
 
-      <Button type="submit" className="w-full py-4 text-lg" variant="primary">
+      <Button type="submit" className="w-full py-3 sm:py-4 text-base sm:text-lg" variant="primary">
         {isSubmitting ? "Submitting..." : (showJoinClubCheckbox && !showDirectoryCheckbox) ? "Add My Business" : "Join Our Cooperative"}
       </Button>
     </motion.form>
