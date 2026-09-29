@@ -64,7 +64,7 @@ service cloud.firestore {
     function isValidSiteSettings(data) {
       return data.get('heroTitle', '') is string && data.get('heroTitle', '').size() <= 500
         && data.get('heroSubtitle', '') is string && data.get('heroSubtitle', '').size() <= 2000
-        && data.get('heroImage', '') is string && data.get('heroImage', '').size() <= 1000
+        && data.get('heroImage', '') is string && data.get('heroImage', '').size() <= 3000000
         && data.get('announcement', '') is string && data.get('announcement', '').size() <= 1000
         && data.get('aboutTitle', '') is string && data.get('aboutTitle', '').size() <= 500
         && data.get('aboutContent', '') is string && data.get('aboutContent', '').size() <= 5000
@@ -74,7 +74,7 @@ service cloud.firestore {
         && data.get('eventsContent', '') is string && data.get('eventsContent', '').size() <= 5000
         && data.get('clubTitle', '') is string && data.get('clubTitle', '').size() <= 500
         && data.get('clubContent', '') is string && data.get('clubContent', '').size() <= 5000
-        && data.get('clubImage', '') is string && data.get('clubImage', '').size() <= 1000
+        && data.get('clubImage', '') is string && data.get('clubImage', '').size() <= 3000000
         && data.get('footerContent', '') is string && data.get('footerContent', '').size() <= 2000
         && data.get('testimonialsTitle', '') is string && data.get('testimonialsTitle', '').size() <= 500
         && data.get('testimonialsSubtitle', '') is string && data.get('testimonialsSubtitle', '').size() <= 2000
@@ -130,9 +130,9 @@ service cloud.firestore {
 
     match /admins/{adminUid} {
       allow read: if isSignedIn();
-      // Only existing admins can add new admins
-      // SPECIAL BOOTSTRAP RULE: allow growlocalcreative@gmail.com to create their own admin record
-      allow create: if isSignedIn() && (isAdmin() || request.auth.token.email == 'growlocalcreative@gmail.com');
+      // Only existing admins can add or update admin records
+      // SPECIAL BOOTSTRAP RULE: allow growlocalcreative@gmail.com to initialize/update their own admin record
+      allow create, update: if isSignedIn() && (isAdmin() || request.auth.token.email == 'growlocalcreative@gmail.com');
       allow delete: if isAdmin() && adminUid != request.auth.uid;
     }
 

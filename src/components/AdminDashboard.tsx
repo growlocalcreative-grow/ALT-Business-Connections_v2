@@ -63,6 +63,36 @@ import { Button, Card, Section } from "./UI";
 import { Business, MembershipApplication, SiteSettings, Testimonial, AppEvent, NewsletterSettings } from "../types";
 import { AnimatePresence, motion } from "motion/react";
 
+const compressImage = (base64Str: string, maxWidth = 1200, maxHeight = 1200): Promise<string> => {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.src = base64Str;
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      let width = img.width;
+      let height = img.height;
+
+      if (width > height) {
+        if (width > maxWidth) {
+          height *= maxWidth / width;
+          width = maxWidth;
+        }
+      } else {
+        if (height > maxHeight) {
+          width *= maxHeight / height;
+          height = maxHeight;
+        }
+      }
+
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      ctx?.drawImage(img, 0, 0, width, height);
+      resolve(canvas.toDataURL('image/jpeg', 0.7)); // Compress as JPEG with 0.7 quality
+    };
+  });
+};
+
 interface EditModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -81,13 +111,14 @@ const EditBusinessModal: React.FC<EditModalProps> = ({ isOpen, onClose, onSave, 
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 1024 * 1024) { // 1MB limit
-        alert("Image size must be less than 1MB");
+      if (file.size > 5 * 1024 * 1024) { // 5MB limit
+        alert("Image size must be less than 5MB");
         return;
       }
       const reader = new FileReader();
-      reader.onloadend = () => {
-        setFormData({ ...formData, logo: reader.result as string });
+      reader.onloadend = async () => {
+        const compressed = await compressImage(reader.result as string, 800, 800);
+        setFormData({ ...formData, logo: compressed });
       };
       reader.readAsDataURL(file);
     }
@@ -268,13 +299,14 @@ const EditTestimonialModal: React.FC<{
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 1024 * 1024) { // 1MB limit
-        alert("Image size must be less than 1MB");
+      if (file.size > 5 * 1024 * 1024) { // 5MB limit
+        alert("Image size must be less than 5MB");
         return;
       }
       const reader = new FileReader();
-      reader.onloadend = () => {
-        setFormData({ ...formData, image: reader.result as string });
+      reader.onloadend = async () => {
+        const compressed = await compressImage(reader.result as string, 600, 600);
+        setFormData({ ...formData, image: compressed });
       };
       reader.readAsDataURL(file);
     }
@@ -1461,6 +1493,16 @@ export const AdminDashboard: React.FC = () => {
 
   const saveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Estimate size of siteSettings (Firestore limit is 1MB)
+    const settingsString = JSON.stringify(siteSettings);
+    const sizeInBytes = new Blob([settingsString]).size;
+    
+    if (sizeInBytes > 1000000) {
+      showMessage("Error", `Settings payload too large (${(sizeInBytes / 1024 / 1024).toFixed(2)} MB). Please use smaller images or link to external images.`);
+      return;
+    }
+
     try {
       await setDoc(doc(db, "settings", "global"), {
         ...siteSettings,
@@ -1475,13 +1517,14 @@ export const AdminDashboard: React.FC = () => {
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>, field: string) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 2 * 1024 * 1024) { // 2MB limit
-        showMessage("Error", "Image size must be less than 2MB");
+      if (file.size > 5 * 1024 * 1024) { // Allow up to 5MB for upload, we'll compress it anyway
+        showMessage("Error", "Image size must be less than 5MB");
         return;
       }
       const reader = new FileReader();
-      reader.onloadend = () => {
-        setSiteSettings({ ...siteSettings, [field]: reader.result as string });
+      reader.onloadend = async () => {
+        const compressed = await compressImage(reader.result as string);
+        setSiteSettings({ ...siteSettings, [field]: compressed });
       };
       reader.readAsDataURL(file);
     }

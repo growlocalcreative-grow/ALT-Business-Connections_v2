@@ -25,6 +25,36 @@ const contactSchema = z.object({
 
 type ContactFormData = z.infer<typeof contactSchema>;
 
+const compressImage = (base64Str: string, maxWidth = 800, maxHeight = 800): Promise<string> => {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.src = base64Str;
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      let width = img.width;
+      let height = img.height;
+
+      if (width > height) {
+        if (width > maxWidth) {
+          height *= maxWidth / width;
+          width = maxWidth;
+        }
+      } else {
+        if (height > maxHeight) {
+          width *= maxHeight / height;
+          height = maxHeight;
+        }
+      }
+
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      ctx?.drawImage(img, 0, 0, width, height);
+      resolve(canvas.toDataURL('image/jpeg', 0.7)); // Compress as JPEG
+    };
+  });
+};
+
 export const ContactForm = ({ 
   onSuccess, 
   defaultJoinClub = true,
@@ -63,15 +93,15 @@ export const ContactForm = ({
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 1024 * 1024) { // 1MB limit
-        alert("Image size must be less than 1MB");
+      if (file.size > 5 * 1024 * 1024) { // 5MB limit
+        alert("Image size must be less than 5MB");
         return;
       }
       const reader = new FileReader();
-      reader.onloadend = () => {
-        const base64 = reader.result as string;
-        setLogoPreview(base64);
-        setValue("logo", base64);
+      reader.onloadend = async () => {
+        const compressed = await compressImage(reader.result as string);
+        setLogoPreview(compressed);
+        setValue("logo", compressed);
       };
       reader.readAsDataURL(file);
     }
